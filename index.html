@@ -490,6 +490,22 @@ body[data-theme="netflix"].scrolled #topbar{background:#141414;box-shadow:0 2px 
 body[data-theme="netflix"] .row-title{font-size:20px}
 body[data-theme="netflix"] .row-link{color:#fff;opacity:.72}
 body[data-theme="netflix"] .row-link:hover{opacity:1}
+
+/* ===== Direct / Link player ===== */
+.dl-form{display:flex;gap:10px;flex-wrap:wrap;margin:6px 0 12px}
+.dl-form input{flex:1 1 380px;min-width:240px;background:var(--panel);border:1px solid var(--line);color:var(--txt);padding:13px 16px;border-radius:12px;font-size:14px;outline:0}
+.dl-form input:focus{border-color:var(--acc);box-shadow:0 0 0 3px rgba(139,92,246,.18)}
+.dl-row{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
+.dl-chk{display:flex;gap:8px;align-items:center;font-size:13.5px;color:var(--muted);cursor:pointer}
+.dl-hint{font-size:12px;color:var(--muted);margin:0 0 16px}
+.dl-hint code{background:rgba(255,255,255,.07);padding:2px 6px;border-radius:6px;word-break:break-all}
+.dl-warn{background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.32);color:#fde68a;padding:14px 16px;border-radius:12px;font-size:13.5px;line-height:1.65;max-width:940px}
+.dl-hist{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.dl-chip{background:var(--panel);border:1px solid var(--line);color:var(--txt);padding:8px 14px;border-radius:20px;font-size:13px;cursor:pointer;max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;transition:.18s}
+.dl-chip:hover{border-color:var(--acc);transform:translateY(-1px)}
+
+.dl-quick{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:12px 0 4px}
+.dl-qlabel{font-size:12px;color:var(--muted);font-weight:800;letter-spacing:.4px;text-transform:uppercase}
 </style>
 </head>
 <body data-theme="netflix">
@@ -549,7 +565,7 @@ body[data-theme="netflix"] .row-link:hover{opacity:1}
 <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.17/dist/hls.min.js" integrity="sha384-9v3HcdYrO3D+OPDTjZ40RXocgE4GtXVCd3/mCS62JsM93JXgI1afJVuwjFvsu6ni" crossorigin="anonymous" referrerpolicy="no-referrer" onerror="var s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.17/hls.min.js';s.integrity='sha384-9v3HcdYrO3D+OPDTjZ40RXocgE4GtXVCd3/mCS62JsM93JXgI1afJVuwjFvsu6ni';s.crossOrigin='anonymous';s.referrerPolicy='no-referrer';document.head.appendChild(s)"></script>
 <script>
 "use strict";
-const APP_BUILD = "v2.8-polish";
+const APP_BUILD = "v2.9-directlink";
 const $ = (s, r) => (r || document).querySelector(s);
 const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
 const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -1642,6 +1658,7 @@ const homeChipsHTML =
 '<button type="button" class="chip" data-route-jump="#/movies">Movies Hub →</button>' +
 '<button type="button" class="chip" data-route-jump="#/series">Series Hub →</button>' +
 '<button type="button" class="chip" data-route-jump="#/anime">Anime Hub →</button>' +
+'<button type="button" class="chip" data-route-jump="#/direct">🔗 Link se Play</button>' +
 '</div>';
 app.innerHTML =
 '<div class="hero" id="heroBox"></div>' +
@@ -2962,6 +2979,143 @@ const QUICK_ADDONS = [
 { base: "https://opensubtitles-v3.strem.io", name: "OpenSubtitles v3", desc: "Auto multi-language subtitles for movies & series" },
 { base: "https://watchhub.strem.io", name: "WatchHub", desc: "Official streaming links & platform availability" }
 ];
+/* ================= Direct / Link Player — apne worker proxy se koi bhi link ================= */
+const DIRECT_HIST_KEY = "se_direct_hist";
+function directHist() {
+try { const a = JSON.parse(localStorage.getItem(DIRECT_HIST_KEY) || "[]"); return Array.isArray(a) ? a.map(String).filter(Boolean) : []; } catch (e) { return []; }
+}
+function directHistAdd(u) {
+try { const a = directHist().filter((x) => x !== u); a.unshift(u); localStorage.setItem(DIRECT_HIST_KEY, JSON.stringify(a.slice(0, 8))); } catch (e) {}
+}
+function linkExt(u) {
+try { const p = String(u || "").split("#")[0].split("?")[0]; const i = p.lastIndexOf("."); return i > -1 ? p.slice(i + 1).toLowerCase().slice(0, 5) : ""; } catch (e) { return ""; }
+}
+function linkName(u) {
+try {
+let s = String(u || "").split("#")[0].split("?")[0].split("/").pop() || "Direct Link";
+s = decodeURIComponent(s).replace(/\.[a-z0-9]{2,5}$/i, "").replace(/[._]+/g, " ").trim();
+return (s || "Direct Link").slice(0, 80);
+} catch (e) { return "Direct Link"; }
+}
+function linkSearchQuery(u) {
+try {
+let n = linkName(u);
+n = n.replace(/\b(480p|540p|720p|1080p|2160p|4k|uhd|web-?dl|webrip|web\b|hdrip|bluray|brrip|hdtv|hdr|hevc|x264|x265|aac|ac3|ddp?\s?5\.1|esub|esubs|multi|dual audio|nf|amzn|dsnp|hc)\b/gi, " ");
+n = n.replace(/\bS\d{1,2}\s?E\d{1,3}\b/gi, " ").replace(/\b(hindi|tamil|telugu|malayalam|kannada|english)\b/gi, " ");
+n = n.replace(/^[-–—:]+|[-–—:]+$/g, "").replace(/\s+/g, " ").trim();
+return n;
+} catch (e) { return linkName(u); }
+}
+function directSources(u, useProxy) {
+const base = proxyBaseUrl();
+const ext = linkExt(u);
+const tag = ext ? " • " + ext.toUpperCase() : "";
+const out = [];
+if (base && useProxy !== false) out.push({ url: joinProxy(base, u), label: "🛡️ Worker Proxy" + tag, quality: "HD", noProxy: true, proxied: true });
+out.push({ url: u, label: "🎬 Direct Link" + tag, quality: "HD", noProxy: true });
+return out;
+}
+function directPlay(rawUrl, useProxy) {
+const u = String(rawUrl || "").trim();
+if (!/^https?:\/\/\S+$/i.test(u)) { toast("❌ Sahi link daalo (https://… se shuru ho)", true); return false; }
+directHistAdd(u);
+openPlayer({
+title: linkName(u),
+sources: directSources(u, useProxy),
+type: "movie",
+metaId: "direct-" + Date.now().toString(36),
+videoId: "",
+poster: "",
+backdrop: "",
+noHistory: true
+});
+return true;
+}
+function viewDirect(my = S.routeSeq) {
+const app = $("#app");
+if (needBootWait(app)) return;
+if (my !== S.routeSeq) return;
+const qs = String(S.curHash || "").split("?")[1] || "";
+let pre = "";
+try { pre = new URLSearchParams(qs).get("u") || ""; } catch (e) {}
+const base = proxyBaseUrl();
+const hist = directHist();
+app.innerHTML = '<div class="wrap"><h1 class="page-title">🔗 Link se Play</h1>' +
+'<p class="page-sub">Koi bhi direct video link paste karo — apna worker proxy auto lag jayega. MP4 / M3U8 / WebM best chalte hain.</p>' +
+'<form id="dlForm" class="dl-form"><input id="dlUrl" type="url" autocomplete="off" spellcheck="false" placeholder="https://example.com/video.mp4" value="' + esc(pre) + '"><button class="btn btn-primary" type="submit">▶ Play</button></form>' +
+'<div class="dl-row"><label class="dl-chk"><input type="checkbox" id="dlProxy"' + (base ? " checked" : " disabled") + '> 🛡️ ' + (base ? "Worker proxy se chalao" : "Proxy set nahi hai") + '</label>' +
+'<a class="btn btn-sm btn-ghost" href="#/addons" data-route="#/addons">🧩 Proxy set karo</a>' +
+(hist.length ? '<button class="btn btn-sm btn-ghost" type="button" id="dlClearHist">🗑 History clear</button>' : "") +
+'</div>' +
+(base ? '<p class="dl-hint">Proxy: <code>' + esc(base) + '</code></p>' : '<p class="dl-hint">Proxy set karo taaki blocked / CORS wale links bhi chalein.</p>') +
+'<div class="dl-warn"><b>⚠️ MKV / AVI note:</b> browser (Chrome, Edge, Safari, Firefox) MKV container nahi chalate — proxy bytes de dega, par decode browser karega. MKV ke liye <b>VLC / MX Player</b> me proxied link kholo, ya <b>.mp4 / .m3u8</b> version use karo. Player fail hone par wahan se “🟠 VLC me kholo” / “🔗 Link Copy” milta hai.</div>' +
+'<div class="dl-quick"><span class="dl-qlabel">Quick actions:</span>' +
+'<button type="button" class="btn btn-sm btn-ghost" id="dlCopyProxy">📋 Proxied link copy</button>' +
+'<button type="button" class="btn btn-sm btn-ghost" id="dlOpenVlc">🟠 VLC me kholo</button>' +
+'<button type="button" class="btn btn-sm btn-primary" id="dlFindServers">🎬 Ye show app servers se chalao</button>' +
+'</div>' +
+(hist.length ? '<h2 class="row-title" style="margin-top:24px">Recent links</h2><div class="dl-hist">' + hist.map((h) => '<button type="button" class="dl-chip" data-dl="' + esc(h) + '" title="' + esc(h) + '">' + esc(linkName(h)) + ' <span style="opacity:.55">.' + esc(linkExt(h)) + '</span></button>').join("") + '</div>' : "") +
+'</div>';
+const form = $("#dlForm");
+if (form) form.onsubmit = (e) => {
+e.preventDefault();
+const u = String(($("#dlUrl") || {}).value || "").trim();
+const cb = $("#dlProxy");
+if (!u) { toast("Pehle link paste karo", true); return; }
+directPlay(u, cb ? cb.checked : false);
+};
+const dlCurrent = () => {
+const inp = $("#dlUrl");
+const raw = String((inp && inp.value) || pre || "").trim();
+if (!/^https?:\/\/\S+$/i.test(raw)) { toast("Pehle upar link paste karo", true); return ""; }
+return raw;
+};
+const dlProxied = (raw) => {
+const base = proxyBaseUrl();
+const cb = $("#dlProxy");
+const want = base && (cb ? cb.checked : false);
+return want ? joinProxy(base, raw) : raw;
+};
+const copyText = (txt) => {
+try {
+if (navigator.clipboard && navigator.clipboard.writeText) {
+navigator.clipboard.writeText(txt).then(() => toast("📋 Link copy ho gaya"), () => fallback());
+} else fallback();
+} catch (e) { toast("Copy nahi hua", true); }
+function fallback() {
+try {
+const ta = document.createElement("textarea");
+ta.value = txt; ta.style.position = "fixed"; ta.style.opacity = "0";
+document.body.appendChild(ta); ta.select(); document.execCommand("copy"); document.body.removeChild(ta);
+toast("📋 Link copy ho gaya");
+} catch (e) { toast("Manual copy karo: " + txt.slice(0, 40), true); }
+}
+};
+const cp = $("#dlCopyProxy");
+if (cp) cp.onclick = () => { const raw = dlCurrent(); if (raw) copyText(dlProxied(raw)); };
+const ov = $("#dlOpenVlc");
+if (ov) ov.onclick = () => {
+const raw = dlCurrent();
+if (!raw) return;
+const link = dlProxied(raw);
+copyText(link);
+try { location.href = "vlc://" + link; } catch (e) {}
+toast("🟠 VLC ke liye link copy ho gaya — VLC → Open Network Stream me paste karo");
+};
+const fs2 = $("#dlFindServers");
+if (fs2) fs2.onclick = () => {
+const raw = dlCurrent();
+if (!raw) return;
+const q = linkSearchQuery(raw) || linkName(raw);
+try { closePlayer(); } catch (e) {}
+goRoute("#/search?q=" + encodeURIComponent(q));
+toast("🔎 " + q.slice(0, 40) + " — app ke servers dhoond rahe hain");
+};
+const cbh = $("#dlClearHist");
+if (cbh) cbh.onclick = () => { try { localStorage.removeItem(DIRECT_HIST_KEY); } catch (e) {} ; viewDirect(S.routeSeq); toast("History clear"); };
+$$("#app [data-dl]").forEach((b) => { b.onclick = () => { const u = b.dataset.dl; const inp = $("#dlUrl"); if (inp) inp.value = u; directPlay(u, base ? true : false); }; });
+if (pre) setTimeout(() => { try { directPlay(pre, !!base); } catch (e) {} }, 80);
+}
 function viewAddons() {
 const app = $("#app");
 const urls = store.get("se_addons", DEFAULT_ADDON_URLS);
@@ -3005,6 +3159,7 @@ app.innerHTML = '<div class="wrap"><div style="display:flex;align-items:baseline
 '<form class="addon-form" id="addonForm"><input id="addonURL" placeholder="Addon ka manifest URL paste karo...  (https://... ya https://.../manifest.json)"><button class="btn btn-primary" type="submit">➕ Install Addon</button></form>' +
 '<form class="addon-form" id="proxyForm" style="align-items:center"><input id="proxyURL" placeholder="🛡️ Apna proxy URL (Cloudflare Worker) — blocked/na chalne wale streams isse chalenge" value="' + esc(store.get("se_proxy_url", "")) + '"><button class="btn btn-primary" type="submit">🛡️ Save Proxy</button><button class="btn btn-ghost" type="button" id="proxyTest">🧪 Test</button><button class="btn btn-ghost" type="button" id="proxyClear">✕</button></form>' +
 '<p style="font-size:12.5px;color:var(--muted);margin:-14px 0 20px 2px">Custom proxy set hone par player sabse pehle yahi try karega, phir public proxies. Format: <code>https://app.workers.dev</code> ya <code>https://app.workers.dev/?u=</code> (token ho to <code>&amp;k=TOKEN</code> bhi chalega)</p>' +
+'<div style="margin:-10px 0 20px;display:flex;gap:8px;flex-wrap:wrap"><a class="btn btn-sm btn-ghost" href="#/direct" data-route="#/direct">🔗 Link se Play karo (worker proxy)</a></div>' +
 (quickInstallHTML ? '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:-10px 0 20px"><span style="font-size:13px;color:var(--muted);font-weight:700">⚡ Quick Install:</span>' + quickInstallHTML + "</div>" : "") +
 ((S.addons.length || failCards) ? '<div class="addon-grid">' + cards + "</div>"
 : '<div class="empty"><div class="big">🧩</div><h3>Koi addon installed nahi</h3><p>Upar URL daal ke install karo.</p></div>') +
@@ -3285,12 +3440,14 @@ let menuView = "main", curTrack = -1, curSpeed = 1;
 const tracks = [];
 const pkey = opts.metaId;
 const seriesId = String(pkey).split(":")[0];
+if (!opts.noHistory) {
 try {
 const isEp = opts.type === "series" && seriesId !== String(pkey);
 history.add({ id: isEp ? seriesId : String(pkey), type: opts.type || "movie",
 name: isEp ? (opts.metaName || opts.title) : opts.title, genres: opts.genres || [],
 poster: opts.poster || "", backdrop: opts.backdrop || "" });
 } catch (e) {}
+}
 stage.innerHTML =
 '<div class="np-wrap ambient" id="npWrap">' +
 '<video id="npVideo" crossorigin="anonymous" playsinline preload="auto" poster="' + esc(opts.poster || "") + '"></video>' +
@@ -3532,7 +3689,9 @@ const dead = $("#npDead");
 const deadInfo = () => {
 const u = String((sources[srcIdx] && sources[srcIdx].url) || S.currentSrc || "");
 const isHttp = u.indexOf("http://") === 0;
-const lu = u.toLowerCase().split("?")[0];
+const _hasExt = (x) => /\.[a-z0-9]{2,5}(?:[?#]|$)/i.test(String(x || "").split("/").pop() || "");
+const _uExt = _hasExt(u) ? u : (String(S.currentSrc || "").trim() || u);
+const lu = _uExt.toLowerCase().split("?")[0];
 const looksFile = ["mp4", "m3u8", "webm", "mkv", "mov", "m4v", "mpd"].some((e) => lu.slice(-(e.length + 1)) === "." + e) || lu.indexOf("m3u8") > -1;
 const edot = lu.lastIndexOf(".");
 const ext = edot > -1 ? lu.slice(edot + 1) : "";
@@ -3568,7 +3727,7 @@ attachSrc(v, sources[srcIdx].url, (typeof S.proxyIdx === "number" ? S.proxyIdx :
 return;
 }
 const pxDone = pxUsed[srcIdx] || 0;
-if (pxDone < proxyCount()) {
+if (pxDone < proxyCount() && !(sources[srcIdx] && sources[srcIdx].noProxy)) {
 pxUsed[srcIdx] = pxDone + 1;
 spin.hidden = false;
 toast("🛡️ Link blocked / CORS error — Auto-Proxy " + pxUsed[srcIdx] + "/" + proxyCount() + " se chala rahe...");
@@ -5414,6 +5573,7 @@ else if (name === "search") viewSearch(seg.slice(1).join("/"), my);
 else if (name === "list") viewList();
 else if (name === "lab") viewLab();
 else if (name === "addons") viewAddons();
+else if (name === "direct") viewDirect(my);
 else if (name === "sync") viewSync();
 else viewHome(my);
 const routeT1 = (typeof performance !== "undefined" && performance.now) ? performance.now() : Date.now();

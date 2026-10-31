@@ -1,7 +1,7 @@
 /* StreamEo service worker — offline shell + instant repeat loads.
    Strategy: HTML = network-first (3.5s timeout) -> cache; same-origin static = stale-while-revalidate.
    Cross-origin (TMDB, mirrors, HLS CDNs, proxies) is never touched. */
-const VER = "se-v8-1";
+const VER = "se-v9-1";
 const SHELL = ["./", "./index.html", "./manifest.json", "./icon.svg"];
 
 self.addEventListener("install", (e) => {
