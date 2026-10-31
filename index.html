@@ -5,23 +5,23 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>StreamEo — Apni Free Streaming</title>
 <meta name="description" content="StreamEo - apni khud ki Stremio-type streaming website. Addons lagao, movies & series dekho.">
-<meta name="theme-color" content="#03070b">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self' https: data: blob:; script-src 'self' 'unsafe-inline' blob: https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; worker-src 'self' blob:; child-src 'self' blob: https:; style-src 'self' 'unsafe-inline'; font-src 'self' data: https:; manifest-src 'self' data:; img-src 'self' https: http: data: blob:; media-src 'self' https: http: blob: data:; connect-src 'self' https: http: wss:; frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com https://vidsrc.sh https://vidsrc.pm https://autoembed.co https://www.nontongo.win https://www.2embed.cc https://vidlink.pro https://vidsrc.me https:; object-src 'none'; base-uri 'self'; form-action 'self'">
 <meta http-equiv="X-Content-Type-Options" content="nosniff">
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <meta http-equiv="Permissions-Policy" content="camera=(), microphone=(self), geolocation=(), payment=(), usb=(), interest-cohort=(), browsing-topics=()">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="preconnect" href="https://image.tmdb.org" crossorigin>
 <link rel="dns-prefetch" href="https://image.tmdb.org">
 <link rel="preconnect" href="https://v3-cinemeta.strem.io" crossorigin>
 <link rel="dns-prefetch" href="https://v3-cinemeta.strem.io">
+<link rel="preconnect" href="https://images.metahub.space" crossorigin>
+<link rel="dns-prefetch" href="https://images.metahub.space">
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="manifest" href="./manifest.json">
 <link rel="icon" type="image/svg+xml" href="./icon.svg">
 <meta name="theme-color" content="#0b0e17">
-<link rel="preconnect" href="https://v3-cinemeta.strem.io" crossorigin>
-<link rel="preconnect" href="https://images.metahub.space" crossorigin>
-<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='18' fill='%23000'/><text x='50' y='74' font-size='66' font-family='Arial' font-weight='900' fill='%23E50914' text-anchor='middle'>S</text></svg>">
 <style>
 :root{--bg:#0b0e17;--bg2:#11162a;--panel:#161c33;--panel2:#1d2440;--line:rgba(255,255,255,.09);--txt:#eef1f9;--muted:#9aa3bd;--acc:#8b5cf6;--acc2:#22d3ee;--gold:#fbbf24;--green:#34d399;--red:#f87171;--r:14px;--shadow:0 10px 40px rgba(0,0,0,.5)}
@@ -506,6 +506,12 @@ body[data-theme="netflix"] .row-link:hover{opacity:1}
 
 .dl-quick{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:12px 0 4px}
 .dl-qlabel{font-size:12px;color:var(--muted);font-weight:800;letter-spacing:.4px;text-transform:uppercase}
+
+#updatePill{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:9998;border:0;cursor:pointer;
+background:linear-gradient(135deg,#e50914,#ff5b3d);color:#fff;font:800 13.5px/1 system-ui,sans-serif;
+padding:13px 20px;border-radius:999px;box-shadow:0 10px 30px rgba(229,9,20,.45);animation:updIn .35s ease both}
+#updatePill:hover{filter:brightness(1.08);transform:translateX(-50%) translateY(-2px)}
+@keyframes updIn{from{opacity:0;transform:translateX(-50%) translateY(14px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
 </style>
 </head>
 <body data-theme="netflix">
@@ -565,7 +571,7 @@ body[data-theme="netflix"] .row-link:hover{opacity:1}
 <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.17/dist/hls.min.js" integrity="sha384-9v3HcdYrO3D+OPDTjZ40RXocgE4GtXVCd3/mCS62JsM93JXgI1afJVuwjFvsu6ni" crossorigin="anonymous" referrerpolicy="no-referrer" onerror="var s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.17/hls.min.js';s.integrity='sha384-9v3HcdYrO3D+OPDTjZ40RXocgE4GtXVCd3/mCS62JsM93JXgI1afJVuwjFvsu6ni';s.crossOrigin='anonymous';s.referrerPolicy='no-referrer';document.head.appendChild(s)"></script>
 <script>
 "use strict";
-const APP_BUILD = "v2.9-directlink";
+const APP_BUILD = "v2.10-freshness";
 const $ = (s, r) => (r || document).querySelector(s);
 const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
 const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -1641,9 +1647,9 @@ try {
   const _nu = _nx ? backdropOf(_nx) : "";
   if (_nu && !S._heroPre[_nu]) {
     S._heroPre[_nu] = 1;
-    const _lnk = document.createElement("link");
-    _lnk.rel = "preload"; _lnk.as = "image"; _lnk.href = _nu;
-    document.head.appendChild(_lnk);
+    const _img = new Image();
+    _img.decoding = "async";
+    _img.src = _nu; // silent warm-up (no <link rel=preload> console warnings)
   }
 } catch (e) {}
 const restartHero = () => { clearInterval(S.heroTimer); S.heroTimer = setInterval(() => { if (document.hidden || !$("#player").hidden || window.scrollY > 320) return; hi++; if ($("#heroBox")) renderHero(); }, 12000); };
@@ -2751,7 +2757,7 @@ const p = progress.get(vid);
 const bar = p && p.d > 0 ? '<div class="card-progress" style="margin-top:5px"><i style="width:' + Math.min(100, Math.round((p.t / p.d) * 100)) + '%"></i></div>' : "";
 return '<div class="ep-card" data-vid="' + esc(vid) + '" data-title="' + esc(v.title || ("Episode " + v.episode)).replace(/"/g, "&quot;") + '">' +
 "<div class='ep-num'>▶ " + v.episode + "</div>" +
-(v.thumbnail ? '<img class="ep-thumb" loading="lazy" src="' + esc(httpsUrl(v.thumbnail)) + '" onerror="this.remove()">' : "") +
+(v.thumbnail ? '<img class="ep-thumb" loading="lazy" decoding="async" referrerpolicy="no-referrer" src="' + esc(httpsUrl(v.thumbnail)) + '" onerror="if(this.dataset.fb!==\'1\'&&this.src.indexOf(\'/w780\')>-1){this.dataset.fb=\'1\';this.src=this.src.replace(\'/w780.jpg\',\'/w300.jpg\')}else{this.remove()}">' : "") +
 '<div class="ep-info"><div class="ep-title">E' + v.episode + " • " + esc(v.title || ("Episode " + v.episode)) + "</div>" +
 '<div class="ep-sub">' + esc((v.released || "").slice(0, 10)) + (p ? " • ⏯ resume" : " • ⚡ Click to Play") + "</div>" + bar + "</div></div>";
 }).join("");
@@ -5859,9 +5865,50 @@ if ((changed || S.d1Hydrated) && $("#player").hidden) { S._lastRouteAt = 0; rout
   /* ---- PWA: offline shell + instant repeat loads ---- */
   if ("serviceWorker" in navigator && location.protocol === "https:") {
     window.addEventListener("load", function(){
-      navigator.serviceWorker.register("./sw.js").catch(function(){});
+      navigator.serviceWorker.register("./sw.js", { updateViaCache: "none" }).then(function(reg){
+        try { reg.update(); } catch (e) {}
+      }).catch(function(){});
     });
   }
+
+  /* ---- Fresh-build watcher: purana cache kabhi stick na kare ---- */
+  function showUpdatePill(build){
+    if (document.getElementById("updatePill")) return;
+    var b = document.createElement("button");
+    b.id = "updatePill";
+    b.type = "button";
+    b.textContent = "\uD83D\uDD04 Naya version aa gaya (v" + String(build).replace(/^v/, "") + ") \u2014 tap to update";
+    b.onclick = function(){
+      b.textContent = "\u23F3 Update ho raha hai\u2026";
+      var done = function(){
+        try { location.replace(location.pathname + "?u=" + Date.now() + location.hash); } catch (e) { try { location.reload(); } catch (e2) {} }
+      };
+      Promise.resolve()
+        .then(function(){ return (window.caches ? caches.keys() : []); })
+        .then(function(keys){ return Promise.all((keys || []).map(function(k){ return caches.delete(k); })); })
+        .then(function(){ return navigator.serviceWorker ? navigator.serviceWorker.getRegistrations() : []; })
+        .then(function(regs){ return Promise.all((regs || []).map(function(r){ return r.unregister(); })); })
+        .catch(function(){}).then(done);
+    };
+    document.body.appendChild(b);
+    setTimeout(function(){ try { b.remove(); } catch (e) {} }, 45000);
+  }
+  var _updChecking = false;
+  function checkForUpdate(){
+    if (_updChecking) return;
+    _updChecking = true;
+    fetch("./version.json?ts=" + Date.now(), { cache: "no-store" })
+      .then(function(r){ return r.ok ? r.json() : null; })
+      .then(function(j){
+        _updChecking = false;
+        if (!j || !j.build) return;
+        if (String(j.build) !== String(APP_BUILD)) showUpdatePill(j.build);
+      })
+      .catch(function(){ _updChecking = false; });
+  }
+  setTimeout(checkForUpdate, 2500);
+  window.addEventListener("online", checkForUpdate);
+  document.addEventListener("visibilitychange", function(){ if (!document.hidden) checkForUpdate(); });
 })();
 
 boot();
