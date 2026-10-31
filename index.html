@@ -512,6 +512,11 @@ background:linear-gradient(135deg,#e50914,#ff5b3d);color:#fff;font:800 13.5px/1 
 padding:13px 20px;border-radius:999px;box-shadow:0 10px 30px rgba(229,9,20,.45);animation:updIn .35s ease both}
 #updatePill:hover{filter:brightness(1.08);transform:translateX(-50%) translateY(-2px)}
 @keyframes updIn{from{opacity:0;transform:translateX(-50%) translateY(14px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
+
+.np-deadprobe{margin-top:10px;font:600 12.5px/1.5 ui-monospace,Menlo,Consolas,monospace;color:#9fe8ff;background:rgba(34,211,238,.08);border:1px solid rgba(34,211,238,.25);padding:8px 12px;border-radius:9px;max-width:520px;word-break:break-word}
+.dl-testout{margin:12px 0 4px;font:600 13px/1.55 ui-monospace,Menlo,Consolas,monospace;padding:11px 14px;border-radius:11px;max-width:940px;word-break:break-word;background:rgba(255,255,255,.05);border:1px solid var(--line);color:var(--muted)}
+.dl-testout.ok{background:rgba(52,211,153,.1);border-color:rgba(52,211,153,.35);color:#a7f3d0}
+.dl-testout.bad{background:rgba(248,113,113,.1);border-color:rgba(248,113,113,.35);color:#fecaca}
 </style>
 </head>
 <body data-theme="netflix">
@@ -571,7 +576,7 @@ padding:13px 20px;border-radius:999px;box-shadow:0 10px 30px rgba(229,9,20,.45);
 <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.17/dist/hls.min.js" integrity="sha384-9v3HcdYrO3D+OPDTjZ40RXocgE4GtXVCd3/mCS62JsM93JXgI1afJVuwjFvsu6ni" crossorigin="anonymous" referrerpolicy="no-referrer" onerror="var s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.17/hls.min.js';s.integrity='sha384-9v3HcdYrO3D+OPDTjZ40RXocgE4GtXVCd3/mCS62JsM93JXgI1afJVuwjFvsu6ni';s.crossOrigin='anonymous';s.referrerPolicy='no-referrer';document.head.appendChild(s)"></script>
 <script>
 "use strict";
-const APP_BUILD = "v2.10-freshness";
+const APP_BUILD = "v2.11-linkdiag";
 const $ = (s, r) => (r || document).querySelector(s);
 const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
 const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -3012,10 +3017,23 @@ n = n.replace(/^[-–—:]+|[-–—:]+$/g, "").replace(/\s+/g, " ").trim();
 return n;
 } catch (e) { return linkName(u); }
 }
+function isProxiedUrl(u) {
+try {
+const s = String(u || "");
+const base = proxyBaseUrl();
+if (base) {
+try { if (new URL(s).origin === new URL(base).origin) return true; } catch (e) {}
+}
+if (/[?&](u|url|quest)=https?%3A/i.test(s)) return true;
+if (/[?&](u|url|quest)=https?:\/\//i.test(s)) return true;
+return false;
+} catch (e) { return false; }
+}
 function directSources(u, useProxy) {
 const base = proxyBaseUrl();
 const ext = linkExt(u);
 const tag = ext ? " • " + ext.toUpperCase() : "";
+if (isProxiedUrl(u)) return [{ url: u, label: "🛡️ Pehle se proxied link" + tag, quality: "HD", noProxy: true, proxied: true }];
 const out = [];
 if (base && useProxy !== false) out.push({ url: joinProxy(base, u), label: "🛡️ Worker Proxy" + tag, quality: "HD", noProxy: true, proxied: true });
 out.push({ url: u, label: "🎬 Direct Link" + tag, quality: "HD", noProxy: true });
@@ -3059,7 +3077,9 @@ app.innerHTML = '<div class="wrap"><h1 class="page-title">🔗 Link se Play</h1>
 '<button type="button" class="btn btn-sm btn-ghost" id="dlCopyProxy">📋 Proxied link copy</button>' +
 '<button type="button" class="btn btn-sm btn-ghost" id="dlOpenVlc">🟠 VLC me kholo</button>' +
 '<button type="button" class="btn btn-sm btn-primary" id="dlFindServers">🎬 Ye show app servers se chalao</button>' +
+'<button type="button" class="btn btn-sm btn-ghost" id="dlTestLink">🧪 Link test karo</button>' +
 '</div>' +
+'<div class="dl-testout" id="dlTestOut" hidden></div>' +
 (hist.length ? '<h2 class="row-title" style="margin-top:24px">Recent links</h2><div class="dl-hist">' + hist.map((h) => '<button type="button" class="dl-chip" data-dl="' + esc(h) + '" title="' + esc(h) + '">' + esc(linkName(h)) + ' <span style="opacity:.55">.' + esc(linkExt(h)) + '</span></button>').join("") + '</div>' : "") +
 '</div>';
 const form = $("#dlForm");
@@ -3107,6 +3127,19 @@ const link = dlProxied(raw);
 copyText(link);
 try { location.href = "vlc://" + link; } catch (e) {}
 toast("🟠 VLC ke liye link copy ho gaya — VLC → Open Network Stream me paste karo");
+};
+const tl = $("#dlTestLink");
+if (tl) tl.onclick = () => {
+const raw = dlCurrent();
+if (!raw) return;
+const out = $("#dlTestOut");
+const target = dlProxied(raw);
+if (out) { out.hidden = false; out.className = "dl-testout"; out.textContent = "🔎 Testing " + target.slice(0, 90) + "…"; }
+probeLinkStatus(target).then((txt) => {
+if (!out) return;
+out.textContent = "🌐 " + txt + "  —  " + (isProxiedUrl(raw) ? "proxied link" : "via proxy");
+out.className = "dl-testout" + (/HTTP 2\d\d/.test(txt) ? " ok" : " bad");
+});
 };
 const fs2 = $("#dlFindServers");
 if (fs2) fs2.onclick = () => {
@@ -3253,6 +3286,34 @@ viewAddons();
 $("#wipeAll").onclick = () => { if (confirm("My List, Continue Watching aur addons — sab clear ho jayega. Pakka?")) { store.clear(); location.reload(); } };
 }
 const isHls = (u) => /\.m3u8(\?|$)/i.test(String(u || ""));
+/* Kisi bhi media URL ka asli HTTP status check — 404 / 403 / CORS / OK */
+function probeLinkStatus(url) {
+return new Promise((resolve) => {
+const done = (txt) => { try { resolve(txt); } catch (e) {} };
+let ctrl = null;
+try { ctrl = (typeof AbortController !== "undefined") ? new AbortController() : null; } catch (e) {}
+const t = setTimeout(() => { try { if (ctrl) ctrl.abort(); } catch (e) {} done("timeout (6s) — server jawab nahi de raha"); }, 6000);
+const fin = (txt) => { clearTimeout(t); done(txt); };
+try {
+fetch(String(url), { method: "GET", headers: { Range: "bytes=0-1" }, cache: "no-store", signal: ctrl ? ctrl.signal : undefined })
+.then((r) => {
+const ct = (r.headers.get("content-type") || "?").split(";")[0].trim();
+const cr = r.headers.get("content-range") || "";
+const cl = r.headers.get("content-length") || "";
+const size = cr ? cr.split("/")[1] : cl;
+const tag = r.status === 200 || r.status === 206 ? " OK" : r.status === 404 ? " (link galat ya expire)" : r.status === 403 ? " (blocked / token galat)" : r.status === 401 ? " (auth chahiye)" : "";
+const mb = size && /^\d+$/.test(size) ? " • " + (Math.round((+size / 1048576) * 10) / 10) + " MB" : "";
+fin("HTTP " + r.status + tag + " • " + ct + mb);
+try { if (r.body && r.body.cancel) r.body.cancel(); } catch (e) {}
+})
+.catch((e) => {
+const m = String((e && e.message) || e || "");
+if (/abort/i.test(m)) return;
+fin(/cors|failed to fetch|network/i.test(m) ? "network / CORS block — proxy ke bina headers nahi milte" : m.slice(0, 70));
+});
+} catch (e) { fin("probe fail — " + String(e.message || e).slice(0, 50)); }
+});
+}
 function destroyHls() { if (S.hls) { try { S.hls.destroy(); } catch (e) {} S.hls = null; } S.hlsLevels = null; S.hlsAudio = null; }
 const PUBLIC_PROXIES = [
 function (u) { return "https://api.codetabs.com/v1/proxy?quest=" + encodeURIComponent(u); },
@@ -3714,8 +3775,14 @@ dead.innerHTML = '<div class="np-deadcard"><div class="big">📺</div><h3>Video 
 '<button class="np-upplay" id="npDeadBack">🔙 Wapas Jao</button>' +
 (deadInfo().frameable ? '<button class="np-upplay" id="npDeadFrame">🌐 Site player me kholo</button>' : "") +
 '<button class="np-upcancel" id="npDeadVlc">🟠 VLC me kholo</button>' +
-'<button class="np-upcancel" id="npDeadCopy">🔗 Link Copy</button></div></div>';
+'<button class="np-upcancel" id="npDeadCopy">🔗 Link Copy</button></div>' +
+'<div class="np-deadprobe" id="npProbe">🔎 Server se status pooch rahe hain…</div></div>';
 dead.hidden = false;
+try {
+const _pu = deadInfo().u;
+const _pe = $("#npProbe");
+if (_pe && _pu) probeLinkStatus(_pu).then((txt) => { const el = $("#npProbe"); if (el && !dead.hidden) el.textContent = "🌐 " + txt; });
+} catch (e) {}
 $("#npDeadBack").onclick = (e) => { e.stopPropagation(); closePlayer(); };
 $("#npDeadCloud").onclick = (e) => { e.stopPropagation(); const co = S.current || opts; openCloudServer(co, 0); };
 $("#npDeadVlc").onclick = (e) => { e.stopPropagation(); $("#playerVlc").click(); };
