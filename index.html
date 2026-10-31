@@ -404,6 +404,11 @@ footer b{color:var(--txt)}
 .lab-grid input{background:var(--bg2);border:1px solid var(--line);color:var(--txt);padding:11px 14px;border-radius:10px;font-size:13.5px;outline:0}
 .lab-grid input:focus{border-color:var(--acc)}
 .lab-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+#player.np-fake-fs{z-index:99999;width:100vw;height:100vh;height:100dvh;inset:0}
+#player.np-fake-fs .player-bar{position:relative;z-index:6}
+#player:fullscreen,#player:-webkit-full-screen{background:#000;width:100vw;height:100vh}
+#player:fullscreen .player-top,#player:-webkit-full-screen .player-top{z-index:7}
+#playerStage iframe{background:#000}
 #player.mini-mode{inset:auto 18px 18px auto!important;width:min(400px,92vw)!important;height:240px!important;border-radius:14px;border:2px solid var(--acc);box-shadow:0 20px 55px rgba(0,0,0,.92),0 0 28px rgba(0,255,136,.38);overflow:hidden;z-index:160;transition:width .22s,height .22s}
 #player.mini-mode .player-bar{display:none!important}
 #player.mini-mode .player-top{padding:7px 10px;background:linear-gradient(180deg,rgba(0,0,0,.9),transparent)}
@@ -478,6 +483,7 @@ footer b{color:var(--txt)}
     <button class="icon-btn" id="playerClose" title="Band karo (Esc)">✕</button>
     <h3 id="playerTitle">Player</h3>
     <button class="icon-btn" id="playerMini" title="Floating Mini-Player Dock (P) — Video chalte hue site browse karo!">🗗</button>
+    <button class="icon-btn" id="playerFs" title="Fullscreen (F) — Direct + Cloud dono me chalta hai">⛶</button>
     <button class="icon-btn" id="playerShare" title="Share Watch-Party Timestamp Link">📤</button>
     <button class="icon-btn" id="playerShot" title="Screenshot capture karo (S)">📸</button>
     <button class="icon-btn" id="playerVlc" title="VLC / External player me chalao">🟠</button>
@@ -492,7 +498,7 @@ footer b{color:var(--txt)}
 <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.17/dist/hls.min.js" integrity="sha384-9v3HcdYrO3D+OPDTjZ40RXocgE4GtXVCd3/mCS62JsM93JXgI1afJVuwjFvsu6ni" crossorigin="anonymous" referrerpolicy="no-referrer" onerror="var s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.17/hls.min.js';s.integrity='sha384-9v3HcdYrO3D+OPDTjZ40RXocgE4GtXVCd3/mCS62JsM93JXgI1afJVuwjFvsu6ni';s.crossOrigin='anonymous';s.referrerPolicy='no-referrer';document.head.appendChild(s)"></script>
 <script>
 "use strict";
-const APP_BUILD = "v2.3-proxy";
+const APP_BUILD = "v2.4-fs";
 const $ = (s, r) => (r || document).querySelector(s);
 const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
 const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -1875,7 +1881,76 @@ if (catState.items.length < 30) loadPage();
 function viewAnime(my = S.routeSeq) {
 return viewCatalog("series", my, "Animation");
 }
+function fsActive() { return !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement); }
+function fsLockLandscape() {
+try {
+if (!window.matchMedia || !window.matchMedia("(pointer:coarse)").matches) return;
+if (screen.orientation && screen.orientation.lock) {
+const lp = screen.orientation.lock("landscape");
+if (lp && lp.catch) lp.catch(function () {});
+}
+} catch (e) {}
+}
+function fakeFullscreen(el) {
+if (!el) return;
+el.classList.toggle("np-fake-fs");
+const on = el.classList.contains("np-fake-fs");
+try { document.body.style.overflow = on ? "hidden" : ""; } catch (e) {}
+toast(on ? "🖥️ Cinema mode ON (browser ne native fullscreen block kiya) — phone ko landscape karo, Esc se band" : "🖥️ Cinema mode OFF");
+}
+function enterFullscreenEl(el) {
+if (!el) return false;
+const fn = el.requestFullscreen || el.webkitRequestFullscreen || el.webkitRequestFullScreen || el.mozRequestFullScreen || el.msRequestFullscreen;
+if (!fn) return false;
+try {
+const pr = fn.call(el);
+if (pr && pr.catch) pr.catch(function () { fakeFullscreen(el); });
+return true;
+} catch (e) { fakeFullscreen(el); return true; }
+}
+function exitFullscreenAll() {
+try {
+if (document.exitFullscreen) { const pr = document.exitFullscreen(); if (pr && pr.catch) pr.catch(function () {}); }
+else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+else if (document.mozCancelFullScreen) document.mozCancelFullScreen();
+else if (document.msExitFullscreen) document.msExitFullscreen();
+} catch (e) {}
+try { if (screen.orientation && screen.orientation.unlock) screen.orientation.unlock(); } catch (e) {}
+const el = $("#player");
+if (el && el.classList.contains("np-fake-fs")) fakeFullscreen(el);
+}
+function toggleFsSmart() {
+if (document.fullscreenElement || document.webkitFullscreenElement) { exitFullscreenAll(); return; }
+const el = $("#player");
+if (el && el.classList.contains("np-fake-fs")) { fakeFullscreen(el); return; }
+if (!el) return;
+const vid = document.querySelector("#playerStage video");
+const hasElApi = !!(el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen || el.msRequestFullscreen);
+const iframeMode = !!document.querySelector("#cloudIframe");
+if (!hasElApi) {
+if (!iframeMode && vid && vid.webkitEnterFullscreen) { try { vid.webkitEnterFullscreen(); return; } catch (e) {} }
+fakeFullscreen(el);
+return;
+}
+const ok = enterFullscreenEl(el);
+if (ok) setTimeout(fsLockLandscape, 350);
+else if (!iframeMode && vid && vid.webkitEnterFullscreen) { try { vid.webkitEnterFullscreen(); return; } catch (e) {} }
+}
+function preferredCloud(list, type, vid) {
+try {
+const map = store.get("se_last_srv", {}) || {};
+const key = String(type || "movie") + ":" + String(String(vid || "").split(":")[0]);
+const want = map[key];
+if (!want) return list;
+const i = list.findIndex((x) => x.id === want);
+if (i <= 0) return list;
+const out = list.slice();
+out.unshift(out.splice(i, 1)[0]);
+return out;
+} catch (e) { return list; }
+}
 function buildCloudServers(type, vid, startSec) {
+const _ordered = (l) => preferredCloud(l, type, vid);
 const raw = String(vid || "");
 const parts = raw.split(":");
 const imdb = parts[0];
@@ -1886,23 +1961,27 @@ const e = +(parts[2] || 1) || 1;
 const t = Math.max(0, Math.floor(startSec || 0));
 const vlParams = "?primaryColor=00ff9d&secondaryColor=00e5ff&autoplay=true" + (t > 15 ? "&startAt=" + t : "");
 if (isSeries) {
-return [
+return _ordered([
 { id: "vidsrc_sh", name: "⚡ Server 1 • VidSrc SH (Fastest HD)", q: "1080p", url: "https://vidsrc.sh/embed/tv/" + imdb + "/" + s + "/" + e },
 { id: "vidsrc_pm", name: "🟢 Server 2 • VidSrc PM (ISP-Unblocked)", q: "1080p", url: "https://vidsrc.pm/embed/tv/" + imdb + "/" + s + "/" + e },
 { id: "autoembed", name: "🚀 Server 3 • AutoEmbed Pro (Multi-Audio)", q: "1080p", url: "https://autoembed.co/tv/imdb/" + imdb + "-" + s + "-" + e },
 { id: "nontongo", name: "🔥 Server 4 • NontonGo VIP (Fast FHD)", q: "FHD", url: "https://nontongo.win/embed/tv/" + imdb + "/" + s + "/" + e },
 { id: "twoembed", name: "💎 Server 5 • 2Embed Cloud (Global)", q: "HD", url: "https://www.2embed.cc/embedtv/" + imdb + "&s=" + s + "&e=" + e },
-{ id: "vidsrc_me", name: "🌐 Server 6 • VidSrc ME (Auto-Mirror)", q: "1080p", url: "https://vidsrc.me/embed/tv/" + imdb + "/" + s + "/" + e }
-];
+{ id: "vidfast", name: "🚀 Server 6 • VidFast Pro (4K + Multi-Audio)", q: "4K", url: "https://vidfast.pro/tv/" + imdb + "/" + s + "/" + e },
+{ id: "vidsrc_to", name: "🎯 Server 7 • VidSrc TO (Fast Multi-Q)", q: "1080p", url: "https://vidsrc.to/embed/tv/" + imdb + "/" + s + "/" + e },
+{ id: "vidsrc_me", name: "🌐 Server 8 • VidSrc ME (Auto-Mirror)", q: "1080p", url: "https://vidsrc.me/embed/tv/" + imdb + "/" + s + "/" + e }
+ ]);
 }
-return [
+return _ordered([
 { id: "vidsrc_sh", name: "⚡ Server 1 • VidSrc SH (Fastest HD)", q: "1080p", url: "https://vidsrc.sh/embed/movie/" + imdb },
 { id: "vidsrc_pm", name: "🟢 Server 2 • VidSrc PM (ISP-Unblocked)", q: "1080p", url: "https://vidsrc.pm/embed/movie/" + imdb },
 { id: "autoembed", name: "🚀 Server 3 • AutoEmbed Pro (Multi-Audio)", q: "1080p", url: "https://autoembed.co/movie/imdb/" + imdb },
 { id: "nontongo", name: "🔥 Server 4 • NontonGo VIP (Fast FHD)", q: "FHD", url: "https://nontongo.win/embed/movie/" + imdb },
 { id: "twoembed", name: "💎 Server 5 • 2Embed Cloud (Global)", q: "HD", url: "https://www.2embed.cc/embed/" + imdb },
-{ id: "vidlink", name: "🌐 Server 6 • VidLink Pro (Auto-Resume)", q: "1080p", url: "https://vidlink.pro/movie/" + imdb + vlParams }
-];
+{ id: "vidfast", name: "🚀 Server 6 • VidFast Pro (4K + Multi-Audio)", q: "4K", url: "https://vidfast.pro/movie/" + imdb },
+{ id: "vidsrc_to", name: "🎯 Server 7 • VidSrc TO (Fast Multi-Q)", q: "1080p", url: "https://vidsrc.to/embed/movie/" + imdb },
+{ id: "vidlink", name: "🌐 Server 8 • VidLink Pro (Auto-Resume)", q: "1080p", url: "https://vidlink.pro/movie/" + imdb + vlParams }
+]);
 }
 function renderPlayerServerBar(opts, activeMode, trackerUI) {
 const bar = $("#playerBar");
@@ -1942,6 +2021,7 @@ h += '<div id="cloudTrackBar" style="display:flex;align-items:center;gap:6px;mar
 '<button type="button" class="srv-pill' + (adShieldOn ? " on" : "") + '" id="cloudAdShield" style="padding:2px 8px;font-size:11px" title="4-Layer Ad/Tracker Firewall: Fetch/XHR/Beacon Blocker + DOM Purger + Popup &amp; Focus Lock">🛡️ Ad-Shield: ' + (adShieldOn ? "ON" + (bCnt ? " (" + bCnt + ")" : "") : "OFF") + '</button>' +
 '<button type="button" class="srv-pill" id="cloudFxBtn" style="padding:2px 8px;font-size:11px" title="Apply Cyber Video FX Filters on Cloud Player">🎨 FX</button>' +
 '<button type="button" class="srv-pill" id="cloudZoomBtn" style="padding:2px 8px;font-size:11px" title="Cinema Zoom / Crop Black Bars">⛶ Zoom</button>' +
+'<button type="button" class="srv-pill" id="cloudFsBtn" style="padding:2px 8px;font-size:11px;border-color:var(--acc2);color:var(--acc2)" title="Fullscreen (F) — cloud server ke liye">🖥️ Fullscreen</button>' +
 '<span id="cloudTimeBadge" style="color:var(--acc);font-weight:800;font-family:monospace">⚡ RAM 0:00</span>' +
 '<input id="cloudScrub" type="range" min="0" max="100" value="0" title="Drag to sync your current watch position" style="width:82px;accent-color:var(--acc);cursor:pointer">' +
 '<button type="button" class="srv-pill" id="cloudMinus5" style="padding:2px 7px;font-size:11px" title="-5 min">-5m</button>' +
@@ -1985,6 +2065,7 @@ const cloudList = buildCloudServers(opts.type || "movie", pkey, watchedSec);
 opts.cloudServers = cloudList;
 const srv = cloudList[cloudIdx || 0];
 if (!srv) { toast("Cloud server available nahi hai", true); return; }
+try { const _lm = store.get("se_last_srv", {}) || {}; _lm[String(opts.type || "movie") + ":" + String(pkey).split(":")[0]] = srv.id; store.set("se_last_srv", _lm); } catch (e) {}
 const player = $("#player"), stage = $("#playerStage");
 if (NP.cleanup) { try { NP.cleanup(); } catch (e) {} NP.cleanup = null; }
 NP.closeMenu = null;
@@ -2004,6 +2085,16 @@ toast("⏯ Watch Progress Resume: " + fmtTime(watchedSec) + " se record ho raha 
 $("#playerTitle").textContent = "▶ " + opts.title + " • [" + srv.name + "]";
 let adShield = store.get("se_adshield", true) !== false;
 stage.innerHTML = '<iframe id="cloudIframe" src="' + esc(srv.url) + '" referrerpolicy="no-referrer" allow="autoplay; encrypted-media; fullscreen; picture-in-picture" allowfullscreen style="width:100%;height:100%;border:0;background:#000;transition:transform .2s,filter .2s"></iframe>';
+const _ifr0 = $("#cloudIframe");
+if (_ifr0) {
+let _hops = 0;
+_ifr0.addEventListener("error", () => {
+if (_hops >= 2 || cloudList.length < 2) return;
+_hops++;
+toast("⚠ Ye server load nahi hua — agla mirror laga rahe hain...");
+openCloudServer(opts, ((cloudIdx || 0) + _hops) % cloudList.length);
+});
+}
 renderPlayerServerBar(opts, "cloud:" + (cloudIdx || 0), true);
 let cFxIdx = 0, cZoomIdx = 0;
 const CLOUD_FX = [
@@ -2044,6 +2135,12 @@ return "";
 };
 window.addEventListener("blur", onShieldBlur);
 window.addEventListener("beforeunload", onShieldBeforeUnload);
+const onCloudFsKey = (e) => {
+const tg = document.activeElement && document.activeElement.tagName;
+if (/INPUT|TEXTAREA|SELECT/.test(tg || "")) return;
+if (e.key === "f" || e.key === "F") { e.preventDefault(); toggleFsSmart(); }
+};
+document.addEventListener("keydown", onCloudFsKey);
 let lastResumeAt = Date.now();
 const getLiveWatchedSec = () => {
 if (recPaused || document.hidden || Date.now() - lastExactMsg < 4000) return watchedSec;
@@ -2107,6 +2204,8 @@ zmBtn.textContent = "⛶ " + CLOUD_ZOOM[cZoomIdx].name;
 toast("📐 Cloud Zoom: " + CLOUD_ZOOM[cZoomIdx].name);
 };
 }
+const cfsBtn = $("#cloudFsBtn");
+if (cfsBtn) cfsBtn.onclick = () => toggleFsSmart();
 const sc = $("#cloudScrub");
 if (sc) {
 sc.oninput = () => {
@@ -2179,6 +2278,7 @@ window.removeEventListener("message", onCloudMsg);
 window.removeEventListener("visibilitychange", onVisChange);
 window.removeEventListener("blur", onShieldBlur);
 window.removeEventListener("beforeunload", onShieldBeforeUnload);
+document.removeEventListener("keydown", onCloudFsKey);
 };
 }
 async function instantPlay(item) {
@@ -2564,7 +2664,13 @@ el.onclick = () => {
 const g = groups.find((x) => x.addonName === el.dataset.g);
 const st = g.streams[+el.dataset.i];
 if (st.ytId) { openYT(st.ytId, title, { id: vid, type: vtype, genres: metaObj.genres, poster: posterOf(metaObj), metaName: m.name }); return; }
-if (!st.url) { toast("Ye torrent/download stream hai — upar wala Cloud Server click karke chalao!", true); return; }
+if (!st.url) {
+toast("🧲 Torrent/debrid-only link — browser me direct nahi chalta. Cloud Server se chala rahe hain (bina debrid jugaad)");
+const cIdx = (function () { try { const cl = buildCloudServers(vtype, vid, 0); return cl.length ? 0 : -1; } catch (e) { return -1; } })();
+if (cIdx >= 0) openCloudServer(baseOpts, cIdx);
+else toast("Is title ka koi cloud mirror nahi mila — addon me koi aur source try karo", true);
+return;
+}
 const sorted = allDirect.slice().sort((a, b) => (a.url === st.url ? -1 : (b.url === st.url ? 1 : 0)));
 openPlayer(Object.assign({}, baseOpts, { sources: sorted.slice(0, 20) }));
 };
@@ -2904,7 +3010,15 @@ lowLatencyMode: false,
 backBufferLength: 30,
 maxBufferLength: 30,
 maxMaxBufferLength: 60,
-capLevelToPlayerSize: true
+capLevelToPlayerSize: true,
+manifestLoadingMaxRetry: 3,
+levelLoadingMaxRetry: 3,
+fragLoadingMaxRetry: 4,
+fragLoadingRetryDelay: 600,
+manifestLoadingTimeOut: 14000,
+levelLoadingTimeOut: 14000,
+fragLoadingTimeOut: 22000,
+abrEwmaDefaultEstimate: 1200000
 };
 if (useProxy) { const PL = getProxiedHlsLoader((u) => proxyUrl(u, proxyIdx)); if (PL) hcfg.loader = PL; }
 let hls;
@@ -3728,14 +3842,16 @@ return false;
 };
 S.onHlsLevels = () => { if (isMenuOpen() && (menuView === "quality" || menuView === "audio")) renderMenu(); };
 const fsBtn = $("#npFs");
-const setFsIcon = () => { const b = $("#npFs"); if (b) b.innerHTML = npIcon(document.fullscreenElement ? "fsExit" : "fs"); };
-const toggleFS = () => {
-if (document.fullscreenElement) { try { document.exitFullscreen().catch(function () {}); } catch (e) {} }
-else if (player.requestFullscreen) { try { player.requestFullscreen().catch(function () { toast("Fullscreen blocked hai", true); }); } catch (e) {} }
-else if (v.webkitEnterFullscreen) { try { v.webkitEnterFullscreen(); } catch (e) {} }
+const setFsIcon = () => {
+const b = $("#npFs");
+if (b) b.innerHTML = npIcon((fsActive() || (player && player.classList.contains("np-fake-fs"))) ? "fsExit" : "fs");
 };
+const toggleFS = () => toggleFsSmart();
 fsBtn.onclick = (e) => { e.stopPropagation(); toggleFS(); };
+const topFs = $("#playerFs");
+if (topFs) topFs.onclick = (e) => { e.stopPropagation(); toggleFsSmart(); };
 document.addEventListener("fullscreenchange", setFsIcon);
+document.addEventListener("webkitfullscreenchange", setFsIcon);
 setFsIcon();
 $("#npPip").onclick = async (e) => {
 e.stopPropagation();
