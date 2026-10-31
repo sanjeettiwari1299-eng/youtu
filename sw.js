@@ -1,7 +1,10 @@
-/* StreamEo service worker — offline shell + instant repeat loads.
-   Strategy: HTML = network-first (3.5s timeout) -> cache; same-origin static = stale-while-revalidate.
-   Cross-origin (TMDB, mirrors, HLS CDNs, proxies) is never touched. */
-const VER = "se-v9-1";
+/* StreamEo service worker — offline shell + instant repeat loads, but NEVER stale builds.
+   Strategy:
+     - HTML  : network-first (no abort, cache:"no-cache" so GitHub Pages revalidates) -> cache only when offline
+     - static: stale-while-revalidate
+     - version.json & sw.js: always network
+     - cross-origin (TMDB, mirrors, HLS CDNs, proxies): untouched */
+const VER = "se-v10-1";
 const SHELL = ["./", "./index.html", "./manifest.json", "./icon.svg"];
 
 self.addEventListener("install", (e) => {
@@ -28,10 +31,8 @@ function isHTML(req) {
 async function networkFirst(req) {
   const c = await caches.open(VER);
   try {
-    const ctrl = new AbortController();
-    const t = setTimeout(() => ctrl.abort(), 3500);
-    const res = await fetch(req, { signal: ctrl.signal, cache: "no-cache" });
-    clearTimeout(t);
+    // no AbortController: slow networks must still get the NEW build, not a stale cache hit
+    const res = await fetch(req, { cache: "no-cache" });
     if (res && res.ok) c.put(req, res.clone()).catch(() => {});
     return res;
   } catch (e) {
@@ -55,11 +56,11 @@ self.addEventListener("fetch", (e) => {
   const req = e.request;
   if (req.method !== "GET") return;
   const url = new URL(req.url);
-  if (url.origin !== self.location.origin) return;                 // CDNs / APIs / embeds: untouched
-  if (url.pathname.endsWith("/sw.js")) return;                     // never cache the SW itself
-  if (/\.(?:json|js|css|svg|png|jpe?g|webp|woff2?)$/i.test(url.pathname) && !isHTML(req)) {
+  if (url.origin !== self.location.origin) return;                    // CDNs / APIs / embeds: untouched
+  if (url.pathname.endsWith("/sw.js")) return;                        // never cache the SW itself
+  if (url.pathname.endsWith("/version.json")) return;                 // build watcher: always live
+  if (isHTML(req)) { e.respondWith(networkFirst(req)); return; }
+  if (/\.(?:json|js|css|svg|png|jpe?g|webp|woff2?)$/i.test(url.pathname)) {
     e.respondWith(staleWhileRevalidate(req));
-    return;
   }
-  if (isHTML(req)) e.respondWith(networkFirst(req));
 });
