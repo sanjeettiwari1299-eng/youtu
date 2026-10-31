@@ -1,0 +1,11 @@
+# StreamEo media proxy — Cloudflare Worker config
+# Deploy:  cd worker && npx wrangler deploy
+name = "stream-proxy"
+main = "worker.js"
+compatibility_date = "2024-11-01"
+
+# Optional (recommended): shared secret — set as a secret, not here:
+#   npx wrangler secret put TOKEN
+# [vars]
+# TOKEN = "change-me"
+# ALLOW_HOSTS = "cdn.example.com,another.example.com"
