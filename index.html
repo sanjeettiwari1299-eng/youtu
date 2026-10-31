@@ -12,7 +12,13 @@
 <meta http-equiv="Permissions-Policy" content="camera=(), microphone=(self), geolocation=(), payment=(), usb=(), interest-cohort=(), browsing-topics=()">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<link rel="manifest" href="data:application/manifest+json,%7B%22name%22%3A%22StreamEo%20Cyber%20Cinema%22%2C%22short_name%22%3A%22StreamEo%22%2C%22start_url%22%3A%22.%2F%23%2Fhome%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%2303070b%22%2C%22theme_color%22%3A%22%2300ff88%22%7D">
+<link rel="preconnect" href="https://image.tmdb.org" crossorigin>
+<link rel="dns-prefetch" href="https://image.tmdb.org">
+<link rel="preconnect" href="https://v3-cinemeta.strem.io" crossorigin>
+<link rel="dns-prefetch" href="https://v3-cinemeta.strem.io">
+<link rel="manifest" href="./manifest.json">
+<link rel="icon" type="image/svg+xml" href="./icon.svg">
+<meta name="theme-color" content="#0b0e17">
 <link rel="preconnect" href="https://v3-cinemeta.strem.io" crossorigin>
 <link rel="preconnect" href="https://images.metahub.space" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
@@ -439,6 +445,51 @@ footer b{color:var(--txt)}
 .row-link{margin-left:0;flex:0 0 100%;text-align:right}
 .wrap,.sect,.center{padding-left:14px;padding-right:14px}
 }
+
+/* ================= v2.8 — Netflix-grade polish layer ================= */
+#routeBar{position:fixed;top:0;left:0;height:3px;width:0;z-index:9999;opacity:0;pointer-events:none;border-radius:0 3px 3px 0;background:linear-gradient(90deg,#e50914,#ff3b30 60%,#ff8a00);box-shadow:0 0 12px rgba(229,9,20,.65);transition:width .32s ease,opacity .28s ease}
+#routeBar.on{opacity:1}
+.row{position:relative}
+.row-nav{position:absolute;top:50%;transform:translateY(-50%) scale(.96);width:46px;height:104px;display:none;align-items:center;justify-content:center;border:0;border-radius:8px;background:rgba(10,12,20,.62);color:#fff;font:400 34px/1 system-ui,sans-serif;z-index:7;cursor:pointer;opacity:0;transition:opacity .18s ease,transform .18s ease,background .18s ease;-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
+.row-nav:hover{background:rgba(10,12,20,.9);transform:translateY(-50%) scale(1.04)}
+.row-nav.left{left:2px}.row-nav.right{right:2px}
+@media (hover:hover){.row:hover .row-nav{display:flex;opacity:1}}
+.row.at-start .row-nav.left,.row.at-end .row-nav.right{display:none!important}
+#topbar{transition:transform .3s ease,background .3s ease,box-shadow .3s ease}
+body.nav-hide:not(.player-open) #topbar{transform:translateY(-115%)}
+.card{contain:content;transition:transform .22s ease,box-shadow .22s ease}
+.card:hover{transform:translateY(-6px) scale(1.045);box-shadow:0 24px 54px rgba(0,0,0,.75);z-index:6}
+.card:hover .card-img{filter:brightness(.84) saturate(1.06)}
+:focus-visible{outline:2px solid var(--acc2,#22d3ee);outline-offset:2px;border-radius:6px}
+.hero{contain:layout paint}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important;scroll-behavior:auto!important}}
+@media (max-width:640px){
+.row-nav{display:none!important}
+#topbar{-webkit-backdrop-filter:none;backdrop-filter:none;background:rgba(9,11,18,.98)!important}
+.card:hover{transform:none;box-shadow:none}
+}
+body[data-theme="netflix"] .row-title{font-weight:800;letter-spacing:.1px}
+body[data-theme="netflix"] .card,body[data-theme="netflix"] .card-img{border-radius:4px}
+body[data-theme="netflix"] .row-nav{border-radius:2px;background:rgba(20,20,20,.78)}
+body[data-theme="netflix"] .card:hover{box-shadow:0 22px 48px rgba(0,0,0,.85)}
+
+/* hero dots progress + netflix accents */
+.hero-dots button.on{position:relative;overflow:hidden;background:rgba(255,255,255,.25)}
+.hero-dots button.on::after{content:"";position:absolute;inset:0;border-radius:4px;background:var(--acc2);transform-origin:left;animation:heroDot 12s linear forwards}
+@keyframes heroDot{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+.hero-bg{animation:heroFade .55s ease both}
+@keyframes heroFade{from{opacity:.35;transform:scale(1.02)}to{opacity:1;transform:scale(1)}}
+body[data-theme="netflix"] .hero-kicker{color:#fff;letter-spacing:3px}
+body[data-theme="netflix"] .hero-kicker::before{content:"\25CF  ";color:#e50914}
+body[data-theme="netflix"] .hero .btn-primary{background:#e50914;box-shadow:0 8px 26px rgba(229,9,20,.42)}
+body[data-theme="netflix"] .hero .btn-primary:hover{background:#f6121d;box-shadow:0 10px 30px rgba(229,9,20,.6)}
+body[data-theme="netflix"] .hero-dots button.on::after{background:#e50914}
+body[data-theme="netflix"] .hero{border-radius:0 0 10px 10px}
+body[data-theme="netflix"] #topbar{background:linear-gradient(180deg,rgba(0,0,0,.86) 0%,rgba(0,0,0,.35) 70%,transparent 100%)}
+body[data-theme="netflix"].scrolled #topbar{background:#141414;box-shadow:0 2px 14px rgba(0,0,0,.55)}
+body[data-theme="netflix"] .row-title{font-size:20px}
+body[data-theme="netflix"] .row-link{color:#fff;opacity:.72}
+body[data-theme="netflix"] .row-link:hover{opacity:1}
 </style>
 </head>
 <body data-theme="netflix">
@@ -498,7 +549,7 @@ footer b{color:var(--txt)}
 <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.17/dist/hls.min.js" integrity="sha384-9v3HcdYrO3D+OPDTjZ40RXocgE4GtXVCd3/mCS62JsM93JXgI1afJVuwjFvsu6ni" crossorigin="anonymous" referrerpolicy="no-referrer" onerror="var s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.17/hls.min.js';s.integrity='sha384-9v3HcdYrO3D+OPDTjZ40RXocgE4GtXVCd3/mCS62JsM93JXgI1afJVuwjFvsu6ni';s.crossOrigin='anonymous';s.referrerPolicy='no-referrer';document.head.appendChild(s)"></script>
 <script>
 "use strict";
-const APP_BUILD = "v2.7-serverrank";
+const APP_BUILD = "v2.8-polish";
 const $ = (s, r) => (r || document).querySelector(s);
 const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
 const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -1568,6 +1619,17 @@ const hlb = $("#heroListBtn");
 if (hlb) hlb.onclick = () => toggleListHero(m.id);
 $$("#heroBox [data-dot]").forEach((b) => b.onclick = () => { hi = +b.dataset.dot; renderHero(); restartHero(); });
 };
+try {
+  S._heroPre = S._heroPre || {};
+  const _nx = heroItems.length ? heroItems[(hi + 1) % heroItems.length] : null;
+  const _nu = _nx ? backdropOf(_nx) : "";
+  if (_nu && !S._heroPre[_nu]) {
+    S._heroPre[_nu] = 1;
+    const _lnk = document.createElement("link");
+    _lnk.rel = "preload"; _lnk.as = "image"; _lnk.href = _nu;
+    document.head.appendChild(_lnk);
+  }
+} catch (e) {}
 const restartHero = () => { clearInterval(S.heroTimer); S.heroTimer = setInterval(() => { if (document.hidden || !$("#player").hidden || window.scrollY > 320) return; hi++; if ($("#heroBox")) renderHero(); }, 12000); };
 const homeChipsHTML =
 '<div class="chip-bar" id="homeChipBar">' +
@@ -1613,7 +1675,23 @@ if (!url) return;
 jobs.push({ addon, cat, p: fetchCatalog(addon, cat, {}).catch(() => []) });
 });
 });
-const settled = await Promise.all(jobs.map((j) => withCap(j.p, 9000, []).then((metas) => ({ j, metas: metas || [] }))));
+/* Progressive rows — jo catalog pehle aaye wo turant paint ho, slowest ka wait na karo */
+let _seFirstRow = false;
+jobs.forEach((j) => {
+withCap(j.p, 6000, []).then((metas) => {
+if (my !== S.routeSeq || !metas || !metas.length) return;
+const _el = $("#homePrimary");
+if (!_el) return;
+const _ctype = j.cat.type;
+const _label = (j.cat.name || j.cat.id) + (S.addons.length > 1 ? " • " + j.addon.manifest.name : "");
+if (_el.dataset.labels && _el.dataset.labels.indexOf("|" + _label + "|") !== -1) return;
+if (!_seFirstRow) { _seFirstRow = true; _el.innerHTML = ""; }
+_el.dataset.labels = (_el.dataset.labels || "") + "|" + _label + "|";
+const _link = _ctype === "movie" ? "#/movies" : "#/series";
+_el.insertAdjacentHTML("beforeend", rowHTML(_label, metas.slice(0, 20), _link, "Explore All →", _ctype));
+}).catch(() => {});
+});
+const settled = await Promise.all(jobs.map((j) => withCap(j.p, 6000, []).then((metas) => ({ j, metas: metas || [] }))));
 if (my !== S.routeSeq) return;
 const _allTop = [];
 const _movMem = [], _serMem = [];
@@ -1723,7 +1801,8 @@ const app = $("#app");
 if (needBootWait(app)) return;
 const sources = catalogSources(type);
 if (!sources.length) {
-app.innerHTML = '<div class="wrap"><div class="empty"><div class="big">📭</div><h3>Koi catalog nahi mila</h3><p>Catalog wala addon install karo (Cinemeta default hai).</p><br><a class="btn btn-primary" href="#/addons" data-route="#/addons">🧩 Add-ons</a></div></div>';
+const _fb = (typeof FREE_ITEMS !== "undefined" ? FREE_ITEMS : []).slice(0, 18).map((f) => cardHTML(Object.assign({}, f, { free: true }))).join("");
+app.innerHTML = '<div class="wrap"><div class="empty"><div class="big">📭</div><h3>Catalog abhi load nahi hua</h3><p>' + (_fb ? "Addon slow/offline hai — neeche built-in free collection se start karo, catalog wapas aate hi full list aa jayegi." : "Catalog wala addon install karo (Cinemeta default hai).") + '</p><div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:12px"><button class="btn btn-primary" onclick="route()">🔄 Retry</button><a class="btn btn-ghost" href="#/addons" data-route="#/addons">🧩 Add-ons</a><a class="btn btn-ghost" href="#/home" data-route="#/home">🏠 Home</a></div></div>' + (_fb ? '<div class="row"><div class="row-head"><h2 class="row-title">Free Collection <span class="row-sub">built-in • 100% legal</span></h2></div><div class="grid">' + _fb + '</div></div>' : '') + '</div>';
 return;
 }
 catState.src = sources[0].key;
@@ -2532,7 +2611,9 @@ const type = kind;
 const found = await fetchMeta(type, id).catch(() => null);
 if (my !== S.routeSeq) return;
 if (!found) {
-app.innerHTML = '<div class="wrap"><div class="empty"><div class="big">📡</div><h3>Details nahi mile</h3><p>' + (S.metaErr ? "<b>" + esc(S.metaErr.addon) + "</b><br>" + esc(friendlyErr(S.metaErr.err)) : "Isko koi meta-addon support nahi karta.") + '</p><p>Refresh karo ya Add-ons page check karo.</p><br><button class="btn btn-primary" onclick="route()">🔄 Retry</button> <a class="btn btn-ghost" href="#/addons">🧩 Add-ons</a></div></div>';
+app.innerHTML = '<div class="wrap"><div class="empty"><div class="big">📡</div><h3>Details load nahi hui</h3><p>' + (S.metaErr ? "<b>" + esc(S.metaErr.addon) + "</b><br>" + esc(friendlyErr(S.metaErr.err)) : "Isko koi meta-addon support nahi karta.") + '</p><p style="opacity:.75">Direct play try kar sakte ho — server list turant khul jayegi.</p><div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:14px"><button class="btn btn-primary" id="dmPlay">▶ Try Play anyway</button><button class="btn btn-ghost" onclick="route()">🔄 Retry</button><a class="btn btn-ghost" href="#/addons" data-route="#/addons">🧩 Add-ons</a></div></div></div>';
+const _dm = document.getElementById("dmPlay");
+if (_dm) _dm.onclick = () => { try { instantPlay({ id: id, type: type, name: String(id) }); } catch (e) { toast("Play nahi ho paya", true); } };
 return;
 }
 const m = found.meta;
@@ -5298,6 +5379,7 @@ if (S._lastRoutedHash === rawHash && now - (S._lastRouteAt || 0) < 60) return;
 S._lastRoutedHash = rawHash;
 S._lastRouteAt = now;
 S.curHash = rawHash;
+try { window.__routeStart && window.__routeStart(); } catch (e) {}
 clearInterval(S.heroTimer);
 if (catState && catState.io) { try { catState.io.disconnect(); } catch (e) {} catState.io = null; }
 const pl = $("#player");
@@ -5337,6 +5419,7 @@ else viewHome(my);
 const routeT1 = (typeof performance !== "undefined" && performance.now) ? performance.now() : Date.now();
 S.renderMs = Math.max(1, Math.round(routeT1 - routeT0));
 updateHud();
+try { window.__routeDone && window.__routeDone(); } catch (e) {}
 }
 async function boot() {
 // Global img safety-net: jinke paas inline onerror nahi hai (403/ORB dead images), unhe auto poster-art par le jao
@@ -5518,6 +5601,109 @@ S.loading = false;
 if ((changed || S.d1Hydrated) && $("#player").hidden) { S._lastRouteAt = 0; route(S.curHash); }
 }).catch(() => { S.loading = false; });
 }
+/* ================= v2.8 — polish layer (rows, nav, errors, PWA) ================= */
+(function sePolish(){
+  var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  /* ---- route progress bar ---- */
+  var rb = document.createElement("div");
+  rb.id = "routeBar";
+  document.body.appendChild(rb);
+  var rbt = null;
+  window.__routeStart = function(){
+    clearTimeout(rbt);
+    rb.classList.add("on"); rb.style.width = "16%";
+    rbt = setTimeout(function(){ rb.style.width = "68%"; }, 170);
+  };
+  window.__routeDone = function(){
+    clearTimeout(rbt);
+    rb.style.width = "100%";
+    setTimeout(function(){ rb.classList.remove("on"); rb.style.width = "0%"; }, 240);
+  };
+
+  /* ---- row hover arrows (Netflix style) ---- */
+  function ensureRowNav(row){
+    if (!row || row.dataset.navReady === "1") return;
+    var sc = row.querySelector(".row-scroller");
+    if (!sc) return;
+    row.dataset.navReady = "1";
+    var l = document.createElement("button"), r = document.createElement("button");
+    l.type = r.type = "button"; l.className = "row-nav left"; r.className = "row-nav right";
+    l.setAttribute("aria-label","Left scroll"); r.setAttribute("aria-label","Right scroll");
+    l.textContent = "\u2039"; r.textContent = "\u203A";
+    row.appendChild(l); row.appendChild(r);
+    function step(){ return Math.max(280, Math.round(sc.clientWidth * 0.85)); }
+    l.addEventListener("click", function(e){ e.preventDefault(); e.stopPropagation(); sc.scrollBy({ left: -step(), behavior: reduce ? "auto" : "smooth" }); });
+    r.addEventListener("click", function(e){ e.preventDefault(); e.stopPropagation(); sc.scrollBy({ left: step(), behavior: reduce ? "auto" : "smooth" }); });
+    function upd(){
+      var max = sc.scrollWidth - sc.clientWidth - 6;
+      row.classList.toggle("at-start", sc.scrollLeft <= 6);
+      row.classList.toggle("at-end", sc.scrollLeft >= max || max <= 0);
+    }
+    sc.addEventListener("scroll", upd, { passive: true });
+    setTimeout(upd, 80);
+  }
+  function enhanceRows(){ try { document.querySelectorAll("#app .row:not([data-nav-ready])").forEach(ensureRowNav); } catch (e) {} }
+
+  /* ---- topbar hide-on-scroll + scrolled state ---- */
+  var lastY = window.scrollY || 0, tick = false;
+  function onScroll(){
+    if (tick) return; tick = true;
+    requestAnimationFrame(function(){
+      var y = window.scrollY || 0;
+      document.body.classList.toggle("scrolled", y > 30);
+      if (y > lastY + 8 && y > 140) document.body.classList.add("nav-hide");
+      else if (y < lastY - 8 || y < 90) document.body.classList.remove("nav-hide");
+      lastY = y; tick = false;
+    });
+  }
+  window.addEventListener("scroll", onScroll, { passive: true });
+
+  /* ---- global error boundary (non-fatal toasts) ---- */
+  var lastErrAt = 0;
+  function softErr(msg){
+    var n = Date.now();
+    if (n - lastErrAt < 5000) return;
+    lastErrAt = n;
+    try { toast("\u26A0 " + String(msg).slice(0, 90), true); } catch (e) {}
+  }
+  window.addEventListener("error", function(e){ if (e && e.message && !/Script error/i.test(e.message)) softErr(e.message); });
+  window.addEventListener("unhandledrejection", function(e){
+    var r = e && e.reason, m = String((r && r.message) || r || "");
+    if (!m || /abort|AbortError|Failed to fetch|NetworkError|offline|Network request failed|load failed|timed? ?out/i.test(m)) return;
+    softErr(m);
+  });
+
+  /* ---- hero image priority + async decode ---- */
+  function tuneHero(){
+    document.querySelectorAll("#app .hero img, #app .hero-img").forEach(function(img){
+      try { img.setAttribute("fetchpriority","high"); img.decoding = "async"; } catch (e) {}
+    });
+  }
+
+  /* ---- DOM observer (debounced) ---- */
+  var app = document.getElementById("app"), mo = null, mt = null;
+  if (app && window.MutationObserver) {
+    mo = new MutationObserver(function(){
+      clearTimeout(mt);
+      mt = setTimeout(function(){ enhanceRows(); tuneHero(); }, 110);
+    });
+    mo.observe(app, { childList: true, subtree: true });
+  }
+  setInterval(enhanceRows, 3000);
+
+  function kick(){ enhanceRows(); tuneHero(); }
+  if (document.readyState === "complete") kick();
+  else window.addEventListener("load", kick);
+
+  /* ---- PWA: offline shell + instant repeat loads ---- */
+  if ("serviceWorker" in navigator && location.protocol === "https:") {
+    window.addEventListener("load", function(){
+      navigator.serviceWorker.register("./sw.js").catch(function(){});
+    });
+  }
+})();
+
 boot();
 try { console.log("%cStreamEo " + APP_BUILD + "%c — fully-functional stable build • circuit-breaker + incremental search ON", "background:#00ff88;color:#000;font-weight:900;padding:2px 8px;border-radius:4px", "color:#22d3ee"); } catch (e) {}
 </script>
