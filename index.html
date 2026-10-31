@@ -419,6 +419,8 @@ footer b{color:var(--txt)}
 #player.mini-mode .player-bar{display:none!important}
 /* Fullscreen: server list (player-bar) clean hide — bahar aane par wapas */
 #player.fs-mode .player-bar{display:none!important}
+#player.fs-mode .srv-switch,#player.fs-mode .srv-sheet{display:none!important}
+#player:fullscreen .srv-switch,#player:fullscreen .srv-sheet,#player:-webkit-full-screen .srv-switch,#player:-webkit-full-screen .srv-sheet{display:none!important}
 #player.fs-mode .player-top{background:linear-gradient(180deg,rgba(0,0,0,.55),transparent)}
 body.fs-mode{overscroll-behavior:none}
 #player.mini-mode .player-top{padding:7px 10px;background:linear-gradient(180deg,rgba(0,0,0,.9),transparent)}
@@ -570,6 +572,38 @@ padding:13px 20px;border-radius:999px;box-shadow:0 10px 30px rgba(229,9,20,.45);
 .svp-stage:-webkit-full-screen{max-height:none;aspect-ratio:auto;border-radius:0;border:0}
 .svp-stage.sv-fs{position:fixed;inset:0;z-index:1000;max-height:none;aspect-ratio:auto;border-radius:0;border:0}
 @media (max-width:640px){.svp-poster{display:none}.svp-badge{font-size:11px;max-width:50%}.svp-grid{grid-template-columns:1fr}.svp-title{font-size:18px}}
+
+/* ===== EmbedWave-style server switcher ===== */
+.srv-switch{display:flex;align-items:center;gap:7px;background:rgba(18,21,34,.78);border:1px solid rgba(255,255,255,.16);color:#eef1f9;padding:7px 12px;border-radius:10px;font:700 12.5px/1.1 inherit;cursor:pointer;max-width:44vw;transition:.16s;-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
+.srv-switch:hover{border-color:var(--acc);background:rgba(139,92,246,.28)}
+.srv-switch-txt{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:34vw}
+.srv-switch-dot{width:7px;height:7px;flex:0 0 7px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green)}
+.srv-switch-caret{opacity:.65;font-size:10px}
+.srv-sheet{position:absolute;top:58px;right:18px;width:min(370px,92vw);max-height:min(68vh,520px);overflow:auto;background:#0f1322;border:1px solid rgba(255,255,255,.13);border-radius:14px;box-shadow:0 26px 60px rgba(0,0,0,.72);z-index:12;padding:6px 6px 8px;animation:srvIn .16s ease both}
+@keyframes srvIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}
+.srv-sheet h4{display:flex;justify-content:space-between;align-items:center;font-size:10.5px;letter-spacing:1.3px;text-transform:uppercase;color:var(--muted);padding:9px 10px 7px;font-weight:800}
+.srv-sheet h4 span{background:rgba(255,255,255,.08);border-radius:20px;padding:1px 8px;letter-spacing:0;font-size:11px}
+.srv-item{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:transparent;border:1px solid transparent;color:var(--txt);padding:9px 10px;border-radius:10px;cursor:pointer;font:inherit;transition:.13s}
+.srv-item:hover{background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.1)}
+.srv-item.on{background:rgba(52,211,153,.12);border-color:rgba(52,211,153,.45)}
+.srv-item .n{width:20px;height:20px;flex:0 0 20px;border-radius:50%;background:rgba(255,255,255,.09);display:flex;align-items:center;justify-content:center;font-size:10.5px;font-weight:800;color:var(--muted)}
+.srv-item.on .n{background:var(--green);color:#05130d}
+.srv-item .t{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
+.srv-item .t b{font-size:12.8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.srv-item .t small{font-size:10.8px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.srv-item .q{font-size:10px;font-weight:800;color:var(--acc2);background:rgba(34,211,238,.12);border:1px solid rgba(34,211,238,.3);padding:1px 6px;border-radius:20px;white-space:nowrap}
+.srv-item .warn{font-size:12px}
+.srv-sheet .sheet-foot{display:flex;gap:8px;padding:8px 6px 2px;border-top:1px solid rgba(255,255,255,.08);margin-top:6px}
+@media (max-width:640px){
+.srv-sheet{left:8px;right:8px;width:auto;top:52px;max-height:64vh}
+.player-top{gap:6px;padding:8px 10px}
+.player-top h3{font-size:12.5px}
+.player-top .icon-btn{width:32px;height:32px;font-size:14px;border-radius:9px}
+.srv-switch{max-width:34vw;padding:6px 9px;font-size:11.5px;gap:5px}
+.srv-switch-txt{max-width:21vw}
+#playerVlc,#playerShare{display:none}
+.srv-item .t b{font-size:12.2px}
+}
 </style>
 </head>
 <body data-theme="netflix">
@@ -613,6 +647,7 @@ padding:13px 20px;border-radius:999px;box-shadow:0 10px 30px rgba(229,9,20,.45);
   <div class="player-top">
     <button class="icon-btn" id="playerClose" title="Band karo (Esc)">✕</button>
     <h3 id="playerTitle">Player</h3>
+    <button class="srv-switch" id="srvSwitch" hidden title="Server switch karo"><span class="srv-switch-dot"></span><span class="srv-switch-txt">Servers</span><span class="srv-switch-caret">▾</span></button>
     <button class="icon-btn" id="playerMini" title="Floating Mini-Player Dock (P) — Video chalte hue site browse karo!">🗗</button>
     <button class="icon-btn" id="playerFs" title="Fullscreen (F) — Direct + Cloud dono me chalta hai">⛶</button>
     <button class="icon-btn" id="playerShare" title="Share Watch-Party Timestamp Link">📤</button>
@@ -621,6 +656,7 @@ padding:13px 20px;border-radius:999px;box-shadow:0 10px 30px rgba(229,9,20,.45);
     <button class="icon-btn" id="playerCopy" title="Stream URL copy karo (VLC/MX me chalane ke liye)">🔗</button>
   </div>
   <div id="playerStage"></div>
+  <div class="srv-sheet" id="srvSheet" hidden></div>
   <div class="player-bar" id="playerBar"></div>
 </div>
 
@@ -629,7 +665,7 @@ padding:13px 20px;border-radius:999px;box-shadow:0 10px 30px rgba(229,9,20,.45);
 <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.17/dist/hls.min.js" integrity="sha384-9v3HcdYrO3D+OPDTjZ40RXocgE4GtXVCd3/mCS62JsM93JXgI1afJVuwjFvsu6ni" crossorigin="anonymous" referrerpolicy="no-referrer" onerror="var s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.17/hls.min.js';s.integrity='sha384-9v3HcdYrO3D+OPDTjZ40RXocgE4GtXVCd3/mCS62JsM93JXgI1afJVuwjFvsu6ni';s.crossOrigin='anonymous';s.referrerPolicy='no-referrer';document.head.appendChild(s)"></script>
 <script>
 "use strict";
-const APP_BUILD = "v2.15-serverspage";
+const APP_BUILD = "v2.16-srvswitch";
 const $ = (s, r) => (r || document).querySelector(s);
 const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
 const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -2221,11 +2257,75 @@ push("nontongo", "🔥 NontonGo VIP (Fast FHD)", "FHD", isSeries ? "https://nont
 push("autoembed", "🚀 AutoEmbed Pro (Multi-Audio)", "1080p", isSeries ? "https://autoembed.co/tv/imdb/" + imdb + "-" + s + "-" + e : "https://autoembed.co/movie/imdb/" + imdb);
 push("twoembed", "💎 2Embed Cloud (Global)", "HD", isSeries ? "https://www.2embed.cc/embedtv/" + imdb + "&s=" + s + "&e=" + e : "https://www.2embed.cc/embed/" + imdb);
 if (tmdb) push("vixsrc", "⚠️ VixSrc (Bot-check aa sakta hai • backup)", "1080p", isSeries ? "https://vixsrc.to/tv/" + tmdb + "/" + s + "/" + e : "https://vixsrc.to/movie/" + tmdb);
-// ===== order (last-worked first) + renumber so "Server N" matches position =====
+// ===== order (last-worked first, penalized last) + STABLE numbering from canonical order =====
+// Number once from the natural tier order so "Server N" never changes between renders.
+const _numById = new Map();
+list.forEach((x, i) => { if (!_numById.has(String(x.id))) _numById.set(String(x.id), i + 1); });
 const _ordered = preferredCloud(list, type, vid);
 const _scored = _ordered.map((x) => ({ x: x, p: isPenalized(x.id) ? 1 : 0 }));
 _scored.sort((a, b) => a.p - b.p);
-return _scored.map((o, i) => ({ id: o.x.id, name: "Server " + (i + 1) + " • " + o.x.label, q: o.x.q, url: o.x.url }));
+return _scored.map((o) => {
+const _n = _numById.get(String(o.x.id)) || 1;
+const _lbl = String(o.x.label || o.x.name || "").replace(/^Server\s+\d+\s*[•\u2022]\s*/, "");
+return { id: o.x.id, name: "Server " + _n + " • " + _lbl, q: o.x.q, url: o.x.url };
+});
+}
+function svShort(label) {
+const p = svParse(label);
+return p.name || String(label || "Server");
+}
+function renderSrvSwitch(opts, activeMode, directList, cloudList) {
+const btn = $("#srvSwitch"), sheet = $("#srvSheet");
+if (!btn || !sheet) return;
+const dl = directList || [], cl = cloudList || [];
+const total = dl.length + cl.length;
+if (!total) { btn.hidden = true; sheet.hidden = true; return; }
+const isCloud = String(activeMode || "").startsWith("cloud:");
+let cIdx = isCloud ? (+String(activeMode).slice(6) || 0) : -1;
+const _activeId = (S && S.current && S.current.srvId) || "";
+if (isCloud && _activeId) { const _k = cl.findIndex((x) => x.id === _activeId); if (_k >= 0) cIdx = _k; }
+const _num = (i) => { const _p = svParse((cl[i] && (cl[i].name || cl[i].label)) || ""); return _p.idx || (i + 1); };
+let label = "Servers";
+if (cIdx >= 0 && cl[cIdx]) label = "Server " + _num(cIdx) + " • " + svShort(cl[cIdx].name || cl[cIdx].label);
+else if (dl.length) label = "Direct • " + dl.length + (dl.length > 1 ? " sources" : " source");
+else if (cl.length) label = "Server " + _num(0) + " • " + svShort(cl[0].name || cl[0].label);
+btn.hidden = false;
+const txt = btn.querySelector(".srv-switch-txt");
+if (txt) txt.textContent = label;
+let h = '<h4>🎬 Servers <span>' + total + "</span></h4>";
+if (cl.length) {
+h += cl.map((s, i) => {
+const p = svParse(s.name || s.label || "");
+let bad = false;
+try { bad = isPenalized(s.id); } catch (e) {}
+return '<button type="button" class="srv-item' + (i === cIdx ? " on" : "") + '" data-srv-i="' + i + '" data-srv-id="' + esc(s.id || "") + '">' +
+'<span class="n">' + _num(i) + "</span>" +
+'<span class="t"><b>' + esc(p.name) + "</b><small>" + esc(p.note || "cloud mirror") + "</small></span>" +
+'<span class="q">' + esc(s.q || "HD") + "</span>" +
+(bad ? '<span class="warn" title="Recently fail hua tha">⚠️</span>' : "") +
+"</button>";
+}).join("");
+}
+if (dl.length) {
+h += '<button type="button" class="srv-item' + (cIdx < 0 ? " on" : "") + '" data-srv-direct2="1"><span class="n">🎬</span><span class="t"><b>Direct player</b><small>' + dl.length + " stream(s) • app ke andar</small></span><span class=\"q\">" + esc(parseQuality({ title: (dl[0] && dl[0].label) || "" })) + "</span></button>";
+}
+h += '<div class="sheet-foot"><button type="button" class="btn btn-sm btn-ghost" data-sheet-all="1">🖧 All servers page</button><button type="button" class="btn btn-sm btn-ghost" data-sheet-newtab="1">↗ New tab</button></div>';
+sheet.innerHTML = h;
+sheet.querySelectorAll("[data-srv-i]").forEach((b) => {
+b.onclick = () => { sheet.hidden = true; openCloudServer(opts, b.dataset.srvId || +b.dataset.srvI); };
+});
+const db = sheet.querySelector("[data-srv-direct2]");
+if (db) db.onclick = () => { sheet.hidden = true; openPlayer(opts); };
+const allB = sheet.querySelector("[data-sheet-all]");
+if (allB) allB.onclick = () => {
+const _parts = String(opts.videoId || opts.metaId || "").split(":");
+const _q = _parts.length >= 3 ? "?s=" + _parts[1] + "&e=" + _parts[2] : "";
+sheet.hidden = true;
+try { closePlayer(); } catch (e) {}
+goRoute("#/servers/" + (opts.type || "movie") + "/" + safeEnc(_parts[0]) + _q);
+};
+const ntB = sheet.querySelector("[data-sheet-newtab]");
+if (ntB) ntB.onclick = () => { sheet.hidden = true; try { openExternalTab(S.currentSrc || (cl[cIdx] && cl[cIdx].url) || ""); } catch (e) {} };
 }
 function renderPlayerServerBar(opts, activeMode, trackerUI) {
 const bar = $("#playerBar");
@@ -2235,42 +2335,32 @@ const pkey = String(opts.videoId || opts.metaId || "");
 const savedP = progress.get(pkey);
 const cloudList = buildCloudServers(opts.type || "movie", pkey, savedP ? savedP.t : 0, opts.tmdbId);
 opts.cloudServers = cloudList;
-if (!directList.length && !cloudList.length && !opts.ytId) {
+const isCloud = String(activeMode || "").startsWith("cloud:");
+const curCloudIdx = isCloud ? (+String(activeMode).slice(6) || 0) : -1;
+try { renderSrvSwitch(opts, activeMode, directList, cloudList); } catch (e) {}
+const hasTools = !!trackerUI || !!opts.ytId || (opts.type === "series" && !!opts.next);
+if (!hasTools) {
 bar.style.display = "none";
+bar.innerHTML = "";
 return;
 }
 bar.style.display = "flex";
-const curCloudIdx = String(activeMode || "").startsWith("cloud:") ? (+String(activeMode).slice(6) || 0) : -1;
-let h = '<span style="font-size:11.5px;color:var(--muted);font-weight:800;margin-right:2px">🖧 SERVERS:</span>';
-try {
-const _pk0 = String(pkey || "");
-if (/^tt\d+/i.test(_pk0.split(":")[0])) h += '<button type="button" class="srv-pill" data-srv-all="1" style="border-color:var(--acc2);color:var(--acc2)" title="Sabhi servers ek page par (EmbedWave style)">🖧 All Servers Page</button>';
-} catch (e) {}
-if (directList.length) {
-h += '<button type="button" class="srv-pill' + (activeMode === "direct" ? " on" : "") + '" data-srv-direct="1">🎬 Direct Player (' + directList.length + ')</button>';
-}
-cloudList.forEach((cs, idx) => {
-const isOn = activeMode === "cloud:" + idx;
-h += '<button type="button" class="srv-pill' + (isOn ? " on" : "") + '" data-srv-cloud="' + idx + '">' + esc(cs.name) + '</button>';
-});
-if (cloudList.length > 1 && curCloudIdx >= 0) {
-h += '<button type="button" class="srv-pill" id="barNextSrv" style="border-color:var(--acc2);color:var(--acc2)" title="Agar ISP ne block kiya ho to agla server lagao">🔄 Switch Mirror</button>';
+let h = "";
+if (opts.type === "series" && opts.next) {
+h += '<button type="button" class="srv-pill" id="barNextEp" style="border-color:var(--acc);color:var(--acc)">⏭ Next: ' + esc(opts.next.title.slice(0, 22)) + "</button>";
 }
 if (opts.ytId) {
 h += '<button type="button" class="srv-pill' + (activeMode === "yt" ? " on" : "") + '" data-srv-yt="' + esc(opts.ytId) + '">🎞 Trailer</button>';
 }
-if (opts.type === "series" && opts.next) {
-h += '<button type="button" class="srv-pill" id="barNextEp" style="border-color:var(--acc);color:var(--acc)">⏭ Next: ' + esc(opts.next.title.slice(0, 22)) + '</button>';
-}
 if (trackerUI) {
 const adShieldOn = store.get("se_adshield", true) !== false;
 const bCnt = (S && S.blockedAds) || 0;
-h += '<div id="cloudTrackBar" style="display:flex;align-items:center;gap:6px;margin-left:auto;background:rgba(0,255,136,.07);border:1px solid rgba(0,255,136,.32);padding:4px 10px;border-radius:9px;font-size:11.5px;flex-wrap:wrap">' +
-'<button type="button" class="srv-pill' + (adShieldOn ? " on" : "") + '" id="cloudAdShield" style="padding:2px 8px;font-size:11px" title="4-Layer Ad/Tracker Firewall: Fetch/XHR/Beacon Blocker + DOM Purger + Popup &amp; Focus Lock">🛡️ Ad-Shield: ' + (adShieldOn ? "ON" + (bCnt ? " (" + bCnt + ")" : "") : "OFF") + '</button>' +
+h += '<div id="cloudTrackBar" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;flex:1;background:rgba(0,255,136,.07);border:1px solid rgba(0,255,136,.32);padding:4px 10px;border-radius:9px;font-size:11.5px">' +
+'<button type="button" class="srv-pill' + (adShieldOn ? " on" : "") + '" id="cloudAdShield" style="padding:2px 8px;font-size:11px" title="4-Layer Ad/Tracker Firewall: Fetch/XHR/Beacon Blocker + DOM Purger + Popup &amp; Focus Lock">🛡️ Ad-Shield: ' + (adShieldOn ? "ON" + (bCnt ? " (" + bCnt + ")" : "") : "OFF") + "</button>" +
 '<button type="button" class="srv-pill" id="cloudFxBtn" style="padding:2px 8px;font-size:11px" title="Apply Cyber Video FX Filters on Cloud Player">🎨 FX</button>' +
 '<button type="button" class="srv-pill" id="cloudZoomBtn" style="padding:2px 8px;font-size:11px" title="Cinema Zoom / Crop Black Bars">⛶ Zoom</button>' +
 '<button type="button" class="srv-pill" id="cloudFsBtn" style="padding:2px 8px;font-size:11px;border-color:var(--acc2);color:var(--acc2)" title="Fullscreen (F) — cloud server ke liye">🖥️ Fullscreen</button>' +
-'<button type="button" class="srv-pill" id="cloudSandboxBtn" style="padding:2px 8px;font-size:11px;border-color:' + (sandboxMode() === "off" ? "#fbbf24" : "var(--green)") + ';color:' + (sandboxMode() === "off" ? "#fbbf24" : "var(--green)") + '" title="Sandbox mode: Shield (full ad-block) → Compat (best playback, popups still blocked) → Off (ads possible). Tap to change.">🧼 Sandbox: ' + SANDBOX_MODES[sandboxMode()].label + '</button>' +
+'<button type="button" class="srv-pill" id="cloudSandboxBtn" style="padding:2px 8px;font-size:11px;border-color:' + (sandboxMode() === "off" ? "#fbbf24" : "var(--green)") + ";color:" + (sandboxMode() === "off" ? "#fbbf24" : "var(--green)") + '" title="Sandbox mode: Shield (full ad-block) → Compat (best playback, popups still blocked) → Off (ads possible). Tap to change.">🧼 Sandbox: ' + SANDBOX_MODES[sandboxMode()].label + "</button>" +
 '<button type="button" class="srv-pill" id="cloudNewTab" style="padding:2px 8px;font-size:11px" title="Server ko naye tab me kholo (isolated, noopener)">↗ New Tab</button>' +
 '<span id="cloudTimeBadge" style="color:var(--acc);font-weight:800;font-family:monospace">⚡ RAM 0:00</span>' +
 '<input id="cloudScrub" type="range" min="0" max="100" value="0" title="Drag to sync your current watch position" style="width:82px;accent-color:var(--acc);cursor:pointer">' +
@@ -2278,34 +2368,9 @@ h += '<div id="cloudTrackBar" style="display:flex;align-items:center;gap:6px;mar
 '<button type="button" class="srv-pill" id="cloudPlus5" style="padding:2px 7px;font-size:11px" title="+5 min">+5m</button>' +
 '<button type="button" class="srv-pill" id="cloudPauseRec" style="padding:2px 7px;font-size:11px" title="Pause/Resume watch timer">⏸</button>' +
 '<button type="button" class="srv-pill" id="cloudDoneBtn" style="padding:2px 7px;font-size:11px;border-color:var(--green);color:var(--green)" title="Mark 100% Completed">✓ Done</button>' +
-'</div>';
+"</div>";
 }
 bar.innerHTML = h;
-const allBtn = bar.querySelector("[data-srv-all]");
-if (allBtn) allBtn.onclick = () => {
-const _pk = String(opts.videoId || opts.metaId || "");
-const _parts = _pk.split(":");
-const _base = _parts[0];
-const _q = _parts.length >= 3 ? "?s=" + _parts[1] + "&e=" + _parts[2] : "";
-try { closePlayer(); } catch (e) {}
-goRoute("#/servers/" + (opts.type || "movie") + "/" + safeEnc(_base) + _q);
-};
-const dBtn = bar.querySelector("[data-srv-direct]");
-if (dBtn) dBtn.onclick = () => openPlayer(opts);
-bar.querySelectorAll("[data-srv-cloud]").forEach((b) => {
-b.onclick = () => {
-const idx = +b.dataset.srvCloud;
-openCloudServer(opts, idx);
-};
-});
-const nxSrv = $("#barNextSrv");
-if (nxSrv && cloudList.length > 1) {
-nxSrv.onclick = () => {
-const nextIdx = (curCloudIdx + 1) % cloudList.length;
-toast("🔄 Switching to " + cloudList[nextIdx].name);
-openCloudServer(opts, nextIdx);
-};
-}
 const yBtn = bar.querySelector("[data-srv-yt]");
 if (yBtn) yBtn.onclick = () => openYT(yBtn.dataset.srvYt, opts.title, { id: opts.metaId, type: opts.type, genres: opts.genres, poster: opts.poster, metaName: opts.metaName });
 const nxBtn = $("#barNextEp");
@@ -2322,6 +2387,7 @@ let totalDur = (prevProg && prevProg.d > 300) ? prevProg.d : defaultDur;
 let recPaused = false, lastExactMsg = 0;
 const cloudList = buildCloudServers(opts.type || "movie", pkey, watchedSec, opts.tmdbId);
 opts.cloudServers = cloudList;
+if (typeof cloudIdx === "string") { const _k = cloudList.findIndex((x) => x.id === cloudIdx); cloudIdx = _k >= 0 ? _k : 0; }
 const srv = cloudList[cloudIdx || 0];
 if (!srv) { toast("Cloud server available nahi hai", true); return; }
 try {
@@ -3315,9 +3381,12 @@ if (pre) setTimeout(() => { try { directPlay(pre, !!base); } catch (e) {} }, 80)
 }
 /* ================= All-Servers page (EmbedWave-style player + server grid) ================= */
 function svParse(label) {
-const s = String(label || "").trim().replace(/^Server\s+\d+\s*[•\u2022]\s*/, "");
+const raw = String(label || "").trim();
+const mi = raw.match(/^Server\s+(\d+)\s*[•\u2022]\s*/);
+const idx = mi ? +mi[1] : 0;
+const s = raw.replace(/^Server\s+\d+\s*[•\u2022]\s*/, "");
 const m = s.match(/^(.*?)\s*\(([^)]*)\)\s*$/);
-return m ? { name: m[1].trim(), note: m[2].trim() } : { name: s, note: "" };
+return m ? { name: m[1].trim(), note: m[2].trim(), idx } : { name: s, note: "", idx };
 }
 function svList(kind, base, s, e) {
 const vid = kind === "series" ? base + ":" + (s || 1) + ":" + (e || 1) : base;
@@ -3403,7 +3472,7 @@ epSelectors +
 '</div>' +
 '<div class="svp-stage" id="svStage">' +
 '<iframe id="svIframe" src="' + esc(srv.url) + '"' + sandboxAttr() + ' referrerpolicy="no-referrer" allow="autoplay; encrypted-media; fullscreen; picture-in-picture" allowfullscreen title="' + esc(pageTitle) + '"></iframe>' +
-'<div class="svp-badge" id="svBadge"><b>Server ' + (curIdx + 1) + "</b> • " + esc(sp0.name) + " • " + esc(srv.q || "HD") + "</div>" +
+'<div class="svp-badge" id="svBadge"><b>Server ' + (sp0.idx || curIdx + 1) + "</b> • " + esc(sp0.name) + " • " + esc(srv.q || "HD") + "</div>" +
 '<div class="svp-stagebtns"><button type="button" id="svFs" title="Fullscreen (F)">⛶</button><button type="button" id="svNewTab" title="Naya tab">↗</button><button type="button" id="svSandbox" title="Sandbox mode">🧼</button></div>' +
 "</div>" +
 '<div class="svp-actions">' +
@@ -4792,6 +4861,7 @@ NP.closeMenu = null;
 clearTimeout(S.nextTimer); destroyHls();
 if (document.fullscreenElement) { try { document.exitFullscreen().catch(function () {}); } catch (e) {} }
 player.classList.remove("np-idle", "mini-mode", "fs-mode");
+try { const _sh = $("#srvSheet"); if (_sh) _sh.hidden = true; } catch (e) {}
 try { document.body.classList.remove("fs-mode"); } catch (e) {}
 const mBtn = $("#playerMini");
 if (mBtn) mBtn.textContent = "🗗";
@@ -6273,6 +6343,20 @@ if ((changed || S.d1Hydrated) && $("#player").hidden) { S._lastRouteAt = 0; rout
   function kick(){ enhanceRows(); tuneHero(); }
   if (document.readyState === "complete") kick();
   else window.addEventListener("load", kick);
+
+  /* ---- Server switcher sheet (top bar) ---- */
+  document.addEventListener("click", function(e){
+    var t = e.target;
+    var sw = (t && t.closest) ? t.closest("#srvSwitch") : null;
+    var sheet = document.getElementById("srvSheet");
+    if (sw) { if (sheet) sheet.hidden = !sheet.hidden; return; }
+    if (sheet && !sheet.hidden && t && t.closest && !t.closest("#srvSheet")) sheet.hidden = true;
+  });
+  document.addEventListener("keydown", function(e){
+    if (e.key !== "Escape") return;
+    var sheet = document.getElementById("srvSheet");
+    if (sheet && !sheet.hidden) { sheet.hidden = true; e.stopPropagation(); }
+  }, true);
 
   /* ---- PWA: offline shell + instant repeat loads ---- */
   if ("serviceWorker" in navigator && location.protocol === "https:") {
