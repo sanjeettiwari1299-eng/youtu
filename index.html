@@ -492,7 +492,7 @@ footer b{color:var(--txt)}
 <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.17/dist/hls.min.js" integrity="sha384-9v3HcdYrO3D+OPDTjZ40RXocgE4GtXVCd3/mCS62JsM93JXgI1afJVuwjFvsu6ni" crossorigin="anonymous" referrerpolicy="no-referrer" onerror="var s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.17/hls.min.js';s.integrity='sha384-9v3HcdYrO3D+OPDTjZ40RXocgE4GtXVCd3/mCS62JsM93JXgI1afJVuwjFvsu6ni';s.crossOrigin='anonymous';s.referrerPolicy='no-referrer';document.head.appendChild(s)"></script>
 <script>
 "use strict";
-const APP_BUILD = "v2.2-auto-fix";
+const APP_BUILD = "v2.3-proxy";
 const $ = (s, r) => (r || document).querySelector(s);
 const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
 const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -508,7 +508,7 @@ if (s.indexOf("http://") === 0 && typeof location !== "undefined" && location.pr
 return s;
 };
 const _memStore = {};
-const LOCAL_D1_KEYS = ["se_sync_code", "se_sync_api", "se_sync_ts", "se_sync_msg"];
+const LOCAL_D1_KEYS = ["se_sync_code", "se_sync_api", "se_sync_ts", "se_sync_msg", "se_proxy_url"];
 // Ye addon-hosts mar chuke hain (CORS-dead catalogs / hanging endpoints) — saved list + cloud sync se auto-purge hote hain
 const DEAD_ADDON_HOSTS = ["94c8cb9f702d-tmdb-addon.baby-beamup.club"];
 const _cleanAddonUrls = (arr) => {
@@ -2748,6 +2748,8 @@ const quickInstallHTML = QUICK_ADDONS.filter((q) => !urls.some((u) => normalizeB
 app.innerHTML = '<div class="wrap"><div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap"><h1 class="page-title">Add-ons</h1><a class="btn btn-ghost" href="#/sync" data-route="#/sync">Cloud Sync &amp; Backup →</a></div>' +
 '<p class="page-sub">Stremio-protocol addons — catalog, meta, streams, subtitles sab yahin se.</p>' +
 '<form class="addon-form" id="addonForm"><input id="addonURL" placeholder="Addon ka manifest URL paste karo...  (https://... ya https://.../manifest.json)"><button class="btn btn-primary" type="submit">➕ Install Addon</button></form>' +
+'<form class="addon-form" id="proxyForm" style="align-items:center"><input id="proxyURL" placeholder="🛡️ Apna proxy URL (Cloudflare Worker) — blocked/na chalne wale streams isse chalenge" value="' + esc(store.get("se_proxy_url", "")) + '"><button class="btn btn-primary" type="submit">🛡️ Save Proxy</button><button class="btn btn-ghost" type="button" id="proxyTest">🧪 Test</button><button class="btn btn-ghost" type="button" id="proxyClear">✕</button></form>' +
+'<p style="font-size:12.5px;color:var(--muted);margin:-14px 0 20px 2px">Custom proxy set hone par player sabse pehle yahi try karega, phir public proxies. Format: <code>https://app.workers.dev</code> ya <code>https://app.workers.dev/?u=</code> (token ho to <code>&amp;k=TOKEN</code> bhi chalega)</p>' +
 (quickInstallHTML ? '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:-10px 0 20px"><span style="font-size:13px;color:var(--muted);font-weight:700">⚡ Quick Install:</span>' + quickInstallHTML + "</div>" : "") +
 ((S.addons.length || failCards) ? '<div class="addon-grid">' + cards + "</div>"
 : '<div class="empty"><div class="big">🧩</div><h3>Koi addon installed nahi</h3><p>Upar URL daal ke install karo.</p></div>') +
@@ -2789,6 +2791,28 @@ $("#addonForm").onsubmit = (e) => {
 e.preventDefault();
 installAddonByUrl($("#addonURL").value);
 };
+const proxyForm = $("#proxyForm");
+if (proxyForm) {
+proxyForm.onsubmit = (e) => {
+e.preventDefault();
+const pv = ($("#proxyURL").value || "").trim();
+store.set("se_proxy_url", pv);
+toast(pv ? "🛡️ Custom proxy save ho gaya — ab auto-fix me sabse pehle yahi chalega" : "Custom proxy hata diya");
+};
+$("#proxyClear").onclick = () => { store.set("se_proxy_url", ""); $("#proxyURL").value = ""; toast("Custom proxy hata diya"); };
+$("#proxyTest").onclick = async () => {
+const pv = ($("#proxyURL").value || "").trim();
+if (!pv) { toast("Pehle proxy URL daalo", true); return; }
+toast("🧪 Proxy test ho raha hai...");
+try {
+const testSrc = "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8";
+const pr = await fetch(joinProxy(pv, testSrc), { cache: "no-store" });
+const pt = pr.ok ? await pr.text() : "";
+if (pt.indexOf("#EXTM3U") > -1) toast("✅ Proxy working — HLS playlist mil gayi!");
+else toast("⚠️ Proxy jawab de raha hai par playlist nahi (HTTP " + pr.status + ") — URL/token check karo", true);
+} catch (err) { toast("❌ Proxy fail: " + ((err && err.message) || "network / CORS error"), true); }
+};
+}
 $$("#app [data-quick]").forEach((b) => b.onclick = () => installAddonByUrl(b.dataset.quick));
 $$("#app [data-retry]").forEach((b) => b.onclick = () => retryAddon(b.dataset.retry));
 $$("#app [data-test]").forEach((b) => b.onclick = () => testAddon(b.dataset.test));
@@ -2814,12 +2838,31 @@ $("#wipeAll").onclick = () => { if (confirm("My List, Continue Watching aur addo
 }
 const isHls = (u) => /\.m3u8(\?|$)/i.test(String(u || ""));
 function destroyHls() { if (S.hls) { try { S.hls.destroy(); } catch (e) {} S.hls = null; } S.hlsLevels = null; S.hlsAudio = null; }
-const CORS_PROXIES = [
+const PUBLIC_PROXIES = [
 function (u) { return "https://api.codetabs.com/v1/proxy?quest=" + encodeURIComponent(u); },
 function (u) { return "https://api.allorigins.win/raw?url=" + encodeURIComponent(u); },
 function (u) { return "https://corsproxy.io/?url=" + encodeURIComponent(u); }
 ];
-const proxyUrl = (u, i) => { try { return CORS_PROXIES[i](u); } catch (e) { return u; } };
+const proxyBaseUrl = () => { try { return String(store.get("se_proxy_url", "") || "").trim().replace(/\/+$/, ""); } catch (e) { return ""; } };
+function joinProxy(base, u) {
+try {
+let b = String(base || "").trim();
+if (!b) return u;
+const enc = encodeURIComponent(u);
+if (b.indexOf("{url}") > -1) return b.replace("{url}", enc);
+if (/^https?:\/\/[^/?#]+$/i.test(b)) b += "/";
+if (/[?&](u|url|quest)=(&|$)/.test(b)) return b.replace(/([?&](?:u|url|quest)=)(&|$)/, function (m0, p1, p2) { return p1 + enc + p2; });
+return b + (b.indexOf("?") > -1 ? "&" : "?") + "u=" + enc;
+} catch (e) { return u; }
+}
+function proxyList() {
+const out = [];
+const base = proxyBaseUrl();
+if (base) out.push(function (u) { return joinProxy(base, u); });
+return out.concat(PUBLIC_PROXIES);
+}
+const proxyCount = () => proxyList().length;
+const proxyUrl = (u, i) => { try { const l = proxyList(); return (l[i] || function (x) { return x; })(u); } catch (e) { return u; } };
 let hlsProxyLoaderCache = null;
 function getProxiedHlsLoader(px) {
 try {
@@ -3262,10 +3305,10 @@ attachSrc(v, sources[srcIdx].url, (typeof S.proxyIdx === "number" ? S.proxyIdx :
 return;
 }
 const pxDone = pxUsed[srcIdx] || 0;
-if (pxDone < CORS_PROXIES.length) {
+if (pxDone < proxyCount()) {
 pxUsed[srcIdx] = pxDone + 1;
 spin.hidden = false;
-toast("🛡️ Link blocked / CORS error — Auto-Proxy " + pxUsed[srcIdx] + "/" + CORS_PROXIES.length + " se chala rahe...");
+toast("🛡️ Link blocked / CORS error — Auto-Proxy " + pxUsed[srcIdx] + "/" + proxyCount() + " se chala rahe...");
 try { v.removeAttribute("src"); v.load(); } catch (e) {}
 attachSrc(v, sources[srcIdx].url, pxDone);
 return;
