@@ -492,7 +492,7 @@ footer b{color:var(--txt)}
 <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.17/dist/hls.min.js" integrity="sha384-9v3HcdYrO3D+OPDTjZ40RXocgE4GtXVCd3/mCS62JsM93JXgI1afJVuwjFvsu6ni" crossorigin="anonymous" referrerpolicy="no-referrer" onerror="var s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.17/hls.min.js';s.integrity='sha384-9v3HcdYrO3D+OPDTjZ40RXocgE4GtXVCd3/mCS62JsM93JXgI1afJVuwjFvsu6ni';s.crossOrigin='anonymous';s.referrerPolicy='no-referrer';document.head.appendChild(s)"></script>
 <script>
 "use strict";
-const APP_BUILD = "v2.1-stable";
+const APP_BUILD = "v2.2-auto-fix";
 const $ = (s, r) => (r || document).querySelector(s);
 const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
 const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -2267,13 +2267,21 @@ ytId = s.ytId;
 }
 });
 });
-directSources.sort((a, b) => b.rank - a.rank);
+const playHint = (u) => {
+const lu = String(u || "").toLowerCase().split("?")[0].split("#")[0];
+if (/\.(mp4|webm|m4v)$/.test(lu)) return 4;
+if (lu.indexOf("m3u8") > -1) return 3;
+if (/\.mpd$/.test(lu)) return 2;
+if (/\.(mkv|avi|flv|wmv|mov)$/.test(lu)) return -4;
+return 0;
+};
+directSources.sort((a, b) => (b.rank + playHint(b.url)) - (a.rank + playHint(a.url)));
 const cloudServers = buildCloudServers(type, vid);
 const playOpts = {
 title: epTitle,
 poster,
 backdrop,
-sources: directSources.slice(0, 12),
+sources: directSources.slice(0, 20),
 cloudServers,
 ytId,
 metaId: vid,
@@ -2544,7 +2552,7 @@ if (s.url && !seenU[s.url]) { seenU[s.url] = 1; allDirect.push({ url: s.url, lab
 }));
 const baseOpts = {
 title, poster: posterOf(metaObj), backdrop: backdropOf(metaObj),
-sources: allDirect.slice(0, 12), cloudServers: cloudList, ytId: firstYtId,
+sources: allDirect.slice(0, 20), cloudServers: cloudList, ytId: firstYtId,
 metaId: vid, videoId: vid, type: vtype, genres: metaObj.genres,
 next: next ? { vid: next.vid, title: next.title, meta: metaObj } : null, metaName: m.name
 };
@@ -2558,7 +2566,7 @@ const st = g.streams[+el.dataset.i];
 if (st.ytId) { openYT(st.ytId, title, { id: vid, type: vtype, genres: metaObj.genres, poster: posterOf(metaObj), metaName: m.name }); return; }
 if (!st.url) { toast("Ye torrent/download stream hai — upar wala Cloud Server click karke chalao!", true); return; }
 const sorted = allDirect.slice().sort((a, b) => (a.url === st.url ? -1 : (b.url === st.url ? 1 : 0)));
-openPlayer(Object.assign({}, baseOpts, { sources: sorted.slice(0, 12) }));
+openPlayer(Object.assign({}, baseOpts, { sources: sorted.slice(0, 20) }));
 };
 });
 };
@@ -2806,26 +2814,59 @@ $("#wipeAll").onclick = () => { if (confirm("My List, Continue Watching aur addo
 }
 const isHls = (u) => /\.m3u8(\?|$)/i.test(String(u || ""));
 function destroyHls() { if (S.hls) { try { S.hls.destroy(); } catch (e) {} S.hls = null; } S.hlsLevels = null; S.hlsAudio = null; }
-function attachSrc(video, url) {
-S.upgradedHttp = false;
+const CORS_PROXIES = [
+function (u) { return "https://api.codetabs.com/v1/proxy?quest=" + encodeURIComponent(u); },
+function (u) { return "https://api.allorigins.win/raw?url=" + encodeURIComponent(u); },
+function (u) { return "https://corsproxy.io/?url=" + encodeURIComponent(u); }
+];
+const proxyUrl = (u, i) => { try { return CORS_PROXIES[i](u); } catch (e) { return u; } };
+let hlsProxyLoaderCache = null;
+function getProxiedHlsLoader(px) {
 try {
-if (String(url || "").indexOf("http://") === 0 && location.protocol === "https:") {
-url = "https://" + String(url).slice(7);
+const Base = window.Hls && window.Hls.DefaultConfig && window.Hls.DefaultConfig.loader;
+if (!Base) return null;
+if (hlsProxyLoaderCache && hlsProxyLoaderCache.px === px) return hlsProxyLoaderCache.Cls;
+function ProxiedLoader(cfg) { Base.call(this, cfg); }
+ProxiedLoader.prototype = Object.create(Base.prototype);
+ProxiedLoader.prototype.constructor = ProxiedLoader;
+ProxiedLoader.prototype.load = function (ctx, cfg, cbs) {
+try { if (ctx && ctx.url) ctx.url = px(ctx.url); } catch (e) {}
+return Base.prototype.load.call(this, ctx, cfg, cbs);
+};
+hlsProxyLoaderCache = { px: px, Cls: ProxiedLoader };
+return ProxiedLoader;
+} catch (e) { return null; }
+}
+function attachSrc(video, url, proxyIdx) {
+S.upgradedHttp = false;
+let finalUrl = String(url || "");
+try {
+if (finalUrl.indexOf("http://") === 0 && location.protocol === "https:") {
+finalUrl = "https://" + finalUrl.slice(7);
 S.upgradedHttp = true;
 }
 } catch (e) {}
+const origUrl = finalUrl;
+const useProxy = typeof proxyIdx === "number" && proxyIdx >= 0;
+S.currentSrc = origUrl;
+S.proxyIdx = useProxy ? proxyIdx : -1;
+const hlsMode = isHls(origUrl);
 destroyHls();
-S.currentSrc = url;
-if (isHls(url)) {
+if (useProxy) finalUrl = proxyUrl(origUrl, proxyIdx);
+if (hlsMode) {
 if (window.Hls && window.Hls.isSupported()) {
-const hls = new window.Hls({
+const hcfg = {
 enableWorker: true,
 lowLatencyMode: false,
 backBufferLength: 30,
 maxBufferLength: 30,
 maxMaxBufferLength: 60,
 capLevelToPlayerSize: true
-});
+};
+if (useProxy) { const PL = getProxiedHlsLoader((u) => proxyUrl(u, proxyIdx)); if (PL) hcfg.loader = PL; }
+let hls;
+try { hls = new window.Hls(hcfg); }
+catch (e0) { try { delete hcfg.loader; } catch (e1) {} hls = new window.Hls(hcfg); }
 let mediaRecovered = false;
 hls.on(window.Hls.Events.ERROR, function (ev, data) {
 try {
@@ -2859,10 +2900,11 @@ if (fi > 0) hls.audioTrack = fi;
 } catch (e) {}
 if (S.onHlsLevels) { try { S.onHlsLevels(); } catch (e) {} }
 });
-hls.loadSource(url); hls.attachMedia(video); S.hls = hls;
-} else if (video.canPlayType("application/vnd.apple.mpegurl")) video.src = url;
-else { toast("HLS ke liye Chrome / Safari use karo", true); video.src = url; }
-} else video.src = url;
+const feedUrl = (useProxy && hcfg.loader) ? origUrl : finalUrl;
+hls.loadSource(feedUrl); hls.attachMedia(video); S.hls = hls;
+} else if (video.canPlayType("application/vnd.apple.mpegurl")) video.src = finalUrl;
+else { toast("HLS ke liye Chrome / Safari use karo", true); video.src = finalUrl; }
+} else video.src = finalUrl;
 try {
 const pp = video.play();
 if (pp && pp.then) pp.then(function () { try { if (video.muted || video.volume === 0) toast("🔇 Awaaz band hai — speaker button ya M dabao"); } catch (e) {} }).catch(function () {});
@@ -2931,6 +2973,8 @@ const isLiveItem = !!(opts.live || String(opts.metaId || "").indexOf("ftv-") ===
 let fbPromise = isLiveItem ? findLiveBackups(opts.title) : null; // backup servers background me ready hote rahen
 let stallWatch = null;
 let srcIdx = 0, pendingSeek = null, clickTimer = null, idleTimer = null, upTimer = null, closed = false;
+const pxUsed = {};
+let cloudHopTried = false;
 let menuView = "main", curTrack = -1, curSpeed = 1;
 const tracks = [];
 const pkey = opts.metaId;
@@ -3149,15 +3193,17 @@ clearTimeout(idleTimer);
 if (!v.paused && !v.ended) idleTimer = setTimeout(() => { if (!isMenuOpen()) player.classList.add("np-idle"); }, 3000);
 };
 const updQBadge = () => { $("#npQ").textContent = parseQuality({ title: (sources[srcIdx] && sources[srcIdx].label) || "" }); };
-const trySource = (i) => {
+const trySource = (i, proxyIdx) => {
+const sameSource = i === srcIdx;
 srcIdx = i;
+if (!sameSource) pxUsed[i] = 0;
 spin.hidden = false;
 const d0 = $("#npDead"); if (d0) d0.hidden = true;
 destroyHls();
 v._retriedNoCors = false;
 if (!v._audioCtx) v.setAttribute("crossorigin", "anonymous");
 v.removeAttribute("src"); v.load();
-attachSrc(v, sources[i].url);
+attachSrc(v, sources[i].url, typeof proxyIdx === "number" ? proxyIdx : -1);
 updQBadge();
 };
 const switchSource = (i, quiet) => {
@@ -3192,12 +3238,15 @@ spin.hidden = true;
 player.classList.remove("np-idle");
 dead.innerHTML = '<div class="np-deadcard"><div class="big">📺</div><h3>Video nahi chali 😞</h3>' +
 "<p>" + (deadInfo().u ? "Aakhri link: <b>" + esc(deadInfo().u.split("/")[2] || "") + "</b><br>" : "") + "Saare " + sources.length + " links fail ho gaye." + (deadInfo().isHttp ? (S.upgradedHttp ? " 🔓 http link tha — https bana ke try kiya, host ne jawab nahi diya." : (location.protocol === "https:" ? " 🔓 Ye link http:// hai — browser https site pe http video rokta hai (mixed content)." : " http link bhi fail ho gaya.")) : "") + (deadInfo().noPlay ? " <b>" + esc(deadInfo().ext.toUpperCase()) + "</b> format browser support nahi karta — VLC me chalao (neeche button dabao)." : (deadInfo().frameable ? " Ye video-file nahi, <b>page link</b> lagta hai — neeche Site-player try karo." : " Wapas jao, ya VLC/MX me try karo.")) + "</p>" +
-'<div class="np-deadbtns"><button class="np-upplay" id="npDeadBack">🔙 Wapas Jao</button>' +
+'<div class="np-deadbtns">' +
+'<button class="np-upplay" id="npDeadCloud">☁️ Cloud Server 1</button>' +
+'<button class="np-upplay" id="npDeadBack">🔙 Wapas Jao</button>' +
 (deadInfo().frameable ? '<button class="np-upplay" id="npDeadFrame">🌐 Site player me kholo</button>' : "") +
 '<button class="np-upcancel" id="npDeadVlc">🟠 VLC me kholo</button>' +
 '<button class="np-upcancel" id="npDeadCopy">🔗 Link Copy</button></div></div>';
 dead.hidden = false;
 $("#npDeadBack").onclick = (e) => { e.stopPropagation(); closePlayer(); };
+$("#npDeadCloud").onclick = (e) => { e.stopPropagation(); const co = S.current || opts; openCloudServer(co, 0); };
 $("#npDeadVlc").onclick = (e) => { e.stopPropagation(); $("#playerVlc").click(); };
 $("#npDeadCopy").onclick = (e) => { e.stopPropagation(); $("#playerCopy").click(); };
 const dfb = $("#npDeadFrame");
@@ -3209,7 +3258,16 @@ if (!v._retriedNoCors && v.hasAttribute("crossorigin") && !isHls(S.currentSrc) &
 v._retriedNoCors = true;
 v.removeAttribute("crossorigin");
 v.removeAttribute("src"); v.load();
-attachSrc(v, sources[srcIdx].url);
+attachSrc(v, sources[srcIdx].url, (typeof S.proxyIdx === "number" ? S.proxyIdx : -1));
+return;
+}
+const pxDone = pxUsed[srcIdx] || 0;
+if (pxDone < CORS_PROXIES.length) {
+pxUsed[srcIdx] = pxDone + 1;
+spin.hidden = false;
+toast("🛡️ Link blocked / CORS error — Auto-Proxy " + pxUsed[srcIdx] + "/" + CORS_PROXIES.length + " se chala rahe...");
+try { v.removeAttribute("src"); v.load(); } catch (e) {}
+attachSrc(v, sources[srcIdx].url, pxDone);
 return;
 }
 if (srcIdx + 1 < sources.length) { toast("⚠ Ye quality fail — agli try kar rahe..."); switchSource(srcIdx + 1, true); }
@@ -3225,7 +3283,15 @@ toast("⚡ Backup server mila: " + String(added[0].label || "").slice(0, 70));
 switchSource(srcIdx + 1, true);
 }).catch(() => { if (!closed && !player.hidden) showDead(); });
 }
-else { toast("❌ Video load nahi hua", true); showDead(); }
+else {
+const curOpts = S.current || opts;
+const cl = cloudHopTried ? [] : buildCloudServers(curOpts.type || "movie", String(curOpts.videoId || curOpts.metaId || pkey), 0);
+if (cl && cl.length) {
+cloudHopTried = true;
+toast("☁️ Sab direct links fail — Cloud Server 1 (auto-transcode) laga rahe hain...");
+setTimeout(() => { if (!closed && !player.hidden) openCloudServer(curOpts, 0); }, 1200);
+} else { toast("❌ Video load nahi hua", true); showDead(); }
+}
 };
 S.onStreamError = handleStreamErr;
 v.addEventListener("error", handleStreamErr);
@@ -3240,15 +3306,19 @@ link: opts.type === "series" && seriesId !== String(pkey) ? "#/detail/series/" +
 v.addEventListener("waiting", () => { spin.hidden = false; });
 v.addEventListener("playing", () => { spin.hidden = true; });
 v.addEventListener("canplay", () => { spin.hidden = true; });
-if (isLiveItem) {
-// LIVE stall watchdog: 25s tak stream atka rahe to agla server laga do
+{
+// UNIVERSAL stall watchdog: stream atka rahe to proxy / agla source / cloud server khud laga do
 let lastPos = -1, lastMove = Date.now();
+const stallLimit = isLiveItem ? 25000 : 20000;
 v.addEventListener("timeupdate", () => { if (v.currentTime !== lastPos) { lastPos = v.currentTime; lastMove = Date.now(); } });
+v.addEventListener("playing", () => { lastMove = Date.now(); });
 stallWatch = setInterval(() => {
-if (closed || player.hidden || v.paused) return;
-if (v.readyState < 3 && Date.now() - lastMove > 25000) {
+if (closed || player.hidden || v.paused || v.ended) return;
+if (v.readyState < 3 && Date.now() - lastMove > stallLimit) {
 lastMove = Date.now();
-if (srcIdx + 1 < sources.length) { toast("⏳ Live stream atka — agla server laga rahe..."); switchSource(srcIdx + 1, true); }
+if (isLiveItem && srcIdx + 1 < sources.length) { toast("⏳ Live stream atka — agla server laga rahe..."); switchSource(srcIdx + 1, true); return; }
+toast("⏳ Stream atka hua hai — auto-fix try kar rahe hain...");
+handleStreamErr();
 }
 }, 5000);
 }
