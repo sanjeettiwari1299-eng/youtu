@@ -665,7 +665,7 @@ padding:13px 20px;border-radius:999px;box-shadow:0 10px 30px rgba(229,9,20,.45);
 <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.17/dist/hls.min.js" integrity="sha384-9v3HcdYrO3D+OPDTjZ40RXocgE4GtXVCd3/mCS62JsM93JXgI1afJVuwjFvsu6ni" crossorigin="anonymous" referrerpolicy="no-referrer" onerror="var s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.17/hls.min.js';s.integrity='sha384-9v3HcdYrO3D+OPDTjZ40RXocgE4GtXVCd3/mCS62JsM93JXgI1afJVuwjFvsu6ni';s.crossOrigin='anonymous';s.referrerPolicy='no-referrer';document.head.appendChild(s)"></script>
 <script>
 "use strict";
-const APP_BUILD = "v2.16-srvswitch";
+const APP_BUILD = "v2.17-seekfix";
 const $ = (s, r) => (r || document).querySelector(s);
 const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
 const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -2364,8 +2364,8 @@ h += '<div id="cloudTrackBar" style="display:flex;align-items:center;gap:6px;fle
 '<button type="button" class="srv-pill" id="cloudNewTab" style="padding:2px 8px;font-size:11px" title="Server ko naye tab me kholo (isolated, noopener)">↗ New Tab</button>' +
 '<span id="cloudTimeBadge" style="color:var(--acc);font-weight:800;font-family:monospace">⚡ RAM 0:00</span>' +
 '<input id="cloudScrub" type="range" min="0" max="100" value="0" title="Drag to sync your current watch position" style="width:82px;accent-color:var(--acc);cursor:pointer">' +
-'<button type="button" class="srv-pill" id="cloudMinus5" style="padding:2px 7px;font-size:11px" title="-5 min">-5m</button>' +
-'<button type="button" class="srv-pill" id="cloudPlus5" style="padding:2px 7px;font-size:11px" title="+5 min">+5m</button>' +
+'<button type="button" class="srv-pill" id="cloudMinus5" style="padding:2px 7px;font-size:11px" title="Resume timer 5 min peeche (cloud player ke andar seek app nahi kar sakta)">-5m</button>' +
+'<button type="button" class="srv-pill" id="cloudPlus5" style="padding:2px 7px;font-size:11px" title="Resume timer 5 min aage (cloud player ke andar seek app nahi kar sakta)">+5m</button>' +
 '<button type="button" class="srv-pill" id="cloudPauseRec" style="padding:2px 7px;font-size:11px" title="Pause/Resume watch timer">⏸</button>' +
 '<button type="button" class="srv-pill" id="cloudDoneBtn" style="padding:2px 7px;font-size:11px;border-color:var(--green);color:var(--green)" title="Mark 100% Completed">✓ Done</button>' +
 "</div>";
@@ -4264,11 +4264,46 @@ else { v.pause(); flashShow(npIcon("pause")); }
 showUI();
 };
 playBtn.onclick = (e) => { e.stopPropagation(); togglePlay(); };
+// Seek ko har stream par kaam karna chahiye: finite duration, live (Infinity) aur
+// unknown-length proxy streams jahan browser ko duration nahi pata.
+const seekWindowEnd = () => {
+let max = 0;
+try { if (v.seekable && v.seekable.length) max = v.seekable.end(v.seekable.length - 1); } catch (e) {}
+if (!isFinite(max) || max <= 0) max = (isFinite(v.duration) && v.duration > 0) ? v.duration : Infinity;
+return max;
+};
 const seekBy = (dd) => {
-if (!isFinite(v.duration)) return;
-v.currentTime = Math.min(Math.max(0, v.currentTime + dd), v.duration || 0);
-flashShow(dd > 0 ? "+ " + dd + "s" : "− " + Math.abs(dd) + "s");
-showUI();
+const cur = Number(v.currentTime) || 0;
+const max = seekWindowEnd();
+const flash = () => flashShow(dd > 0 ? "+ " + dd + "s" : "− " + Math.abs(dd) + "s");
+if (!isFinite(max)) {
+// Live / unknown length: phir bhi try karo, phir verify karo ki actually hua ya nahi
+try { v.currentTime = Math.max(0, cur + dd); } catch (e) {}
+flash(); showUI();
+setTimeout(() => {
+if (closed) return;
+if (Math.abs((Number(v.currentTime) || 0) - cur) < 0.3 && !v.seeking) {
+toast("⚠️ Is stream me seek support nahi (live ya server Range block kar raha) — thoda wait karo / dusra server chuno.", true);
+}
+}, 1400);
+return;
+}
+if (dd > 0 && max - cur < 0.8) { toast("⏭ Live edge par ho — aage seek nahi ho sakta", true); return; }
+const target = Math.max(0, Math.min(cur + dd, max));
+try { v.currentTime = target; } catch (e) { toast("Seek fail: " + ((e && e.message) || e), true); return; }
+flash(); showUI();
+setTimeout(() => {
+if (closed) return;
+if (Math.abs((Number(v.currentTime) || 0) - target) > 1.5 && !v.seeking) {
+try { v.currentTime = target; } catch (e) {}
+setTimeout(() => {
+if (closed) return;
+if (Math.abs((Number(v.currentTime) || 0) - target) > 1.5 && !v.seeking) {
+toast("⚠️ Seek nahi ho raha — server Range requests support nahi kar raha. Dusra server ya proxy try karo.", true);
+}
+}, 1500);
+}
+}, 1200);
 };
 $("#npBack").onclick = (e) => { e.stopPropagation(); seekBy(-10); };
 $("#npFwd").onclick = (e) => { e.stopPropagation(); seekBy(10); };
@@ -4368,20 +4403,29 @@ const ratioOf = (clientX) => {
 const r = prog.getBoundingClientRect();
 return Math.min(1, Math.max(0, (clientX - r.left) / Math.max(1, r.width)));
 };
+// Scrub bhi live/unknown-duration streams par kaam kare (seekable window use karo)
+const seekToRatio = (ratio) => {
+const dur = (isFinite(v.duration) && v.duration > 0) ? v.duration : seekWindowEnd();
+if (!isFinite(dur) || dur <= 0) return false;
+try { v.currentTime = Math.max(0, Math.min(ratio, 1)) * dur; return true; } catch (e) { return false; }
+};
 prog.addEventListener("pointerdown", (e) => {
 e.stopPropagation();
 scrubbing = true;
 try { prog.setPointerCapture(e.pointerId); } catch (err) {}
-if (isFinite(v.duration)) v.currentTime = ratioOf(e.clientX) * v.duration;
+seekToRatio(ratioOf(e.clientX));
 showUI();
 });
 prog.addEventListener("pointermove", (e) => {
-if (isFinite(v.duration) && v.duration > 0) {
+{
 const ratio = ratioOf(e.clientX);
-tip.textContent = fmtTime(ratio * v.duration);
+const dur = (isFinite(v.duration) && v.duration > 0) ? v.duration : seekWindowEnd();
+if (isFinite(dur) && dur > 0) {
+tip.textContent = fmtTime(ratio * dur);
 tip.style.left = (ratio * 100) + "%";
 tip.style.opacity = "1";
-if (scrubbing) v.currentTime = ratio * v.duration;
+if (scrubbing) seekToRatio(ratio);
+}
 }
 });
 const endScrub = () => { scrubbing = false; };
@@ -6343,6 +6387,21 @@ if ((changed || S.d1Hydrated) && $("#player").hidden) { S._lastRouteAt = 0; rout
   function kick(){ enhanceRows(); tuneHero(); }
   if (document.readyState === "complete") kick();
   else window.addEventListener("load", kick);
+
+  /* ---- Cloud iframe: seek possible nahi — arrow keys par clear hint ---- */
+  document.addEventListener("keydown", function(e){
+    var k = e.key;
+    if (!(k === "ArrowLeft" || k === "ArrowRight" || k === "j" || k === "J" || k === "l" || k === "L")) return;
+    var pl = document.getElementById("player");
+    if (!pl || pl.hidden) return;
+    if (!document.getElementById("cloudIframe") && !document.getElementById("svIframe")) return;
+    var tg = e.target && e.target.tagName;
+    if (tg && /INPUT|TEXTAREA|SELECT/.test(tg)) return;
+    var now = Date.now();
+    if (S._cloudSeekHintAt && now - S._cloudSeekHintAt < 12000) return;
+    S._cloudSeekHintAt = now;
+    toast("ℹ️ Cloud mirror ke andar app seek nahi kar sakta — player ke andar ⏪ / ⏩ dabo, ya 🎬 Servers ▾ → 'Direct player'.", true);
+  });
 
   /* ---- Server switcher sheet (top bar) ---- */
   document.addEventListener("click", function(e){
