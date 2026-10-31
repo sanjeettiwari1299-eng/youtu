@@ -498,7 +498,7 @@ footer b{color:var(--txt)}
 <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.17/dist/hls.min.js" integrity="sha384-9v3HcdYrO3D+OPDTjZ40RXocgE4GtXVCd3/mCS62JsM93JXgI1afJVuwjFvsu6ni" crossorigin="anonymous" referrerpolicy="no-referrer" onerror="var s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.17/hls.min.js';s.integrity='sha384-9v3HcdYrO3D+OPDTjZ40RXocgE4GtXVCd3/mCS62JsM93JXgI1afJVuwjFvsu6ni';s.crossOrigin='anonymous';s.referrerPolicy='no-referrer';document.head.appendChild(s)"></script>
 <script>
 "use strict";
-const APP_BUILD = "v2.5-adshield";
+const APP_BUILD = "v2.6-mirrors";
 const $ = (s, r) => (r || document).querySelector(s);
 const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
 const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -526,6 +526,7 @@ return !DEAD_ADDON_HOSTS.some((h) => s.indexOf(h) > -1);
 });
 };
 let _migratedFromLs = false;
+const TMDB_CACHE = {};
 try {
 if (typeof localStorage !== "undefined" && localStorage.length) {
 const toRemove = [];
@@ -1229,7 +1230,10 @@ S.metaErr = null;
 for (const a of addons) {
 try {
 const d = await jget(a.base + "/meta/" + type + "/" + safeEnc(id) + ".json");
-if (d && d.meta) return { meta: d.meta, addon: a };
+if (d && d.meta) {
+try { if (d.meta.moviedb_id) TMDB_CACHE[String(id).split(":")[0]] = d.meta.moviedb_id; } catch (e) {}
+return { meta: d.meta, addon: a };
+}
 } catch (e) { S.metaErr = { addon: a.base, err: e }; }
 }
 const memPool = [].concat((S.catMem && S.catMem.movie) || [], (S.catMem && S.catMem.series) || [], S.heroPool || [], ADDON_SEED_POOL);
@@ -1970,8 +1974,7 @@ out.unshift(out.splice(i, 1)[0]);
 return out;
 } catch (e) { return list; }
 }
-function buildCloudServers(type, vid, startSec) {
-const _ordered = (l) => preferredCloud(l, type, vid);
+function buildCloudServers(type, vid, startSec, tmdbId) {
 const raw = String(vid || "");
 const parts = raw.split(":");
 const imdb = parts[0];
@@ -1980,31 +1983,36 @@ const isSeries = type === "series" || parts.length >= 3;
 const s = +(parts[1] || 1) || 1;
 const e = +(parts[2] || 1) || 1;
 const t = Math.max(0, Math.floor(startSec || 0));
+const tmdb = String(tmdbId || TMDB_CACHE[imdb] || "").replace(/\D/g, "");
 const vlParams = "?primaryColor=00ff9d&secondaryColor=00e5ff&autoplay=true" + (t > 15 ? "&startAt=" + t : "");
+const list = [];
+const push = (id, label, q, url) => { if (url) list.push({ id: id, label: label, q: q || "HD", url: url }); };
+// ===== TIER 1: TMDB-based "clean" mirrors (sabse kam ads) =====
+if (tmdb) {
 if (isSeries) {
-return _ordered([
-{ id: "vidfast", name: "🧼 Server 1 • VidFast Pro (4K • Clean)", q: "4K", url: "https://vidfast.pro/tv/" + imdb + "/" + s + "/" + e },
-{ id: "vidlink", name: "🧼 Server 2 • VidLink Pro (Clean • Auto-Resume)", q: "1080p", url: "https://vidlink.pro/tv/" + imdb + "/" + s + "/" + e + vlParams },
-{ id: "vidsrc_sh", name: "⚡ Server 3 • VidSrc SH (Fastest HD)", q: "1080p", url: "https://vidsrc.sh/embed/tv/" + imdb + "/" + s + "/" + e },
-{ id: "vidsrc_to", name: "🎯 Server 4 • VidSrc TO (Multi-Q)", q: "1080p", url: "https://vidsrc.to/embed/tv/" + imdb + "/" + s + "/" + e },
-{ id: "vidsrc_pm", name: "🟢 Server 5 • VidSrc PM (ISP-Unblocked)", q: "1080p", url: "https://vidsrc.pm/embed/tv/" + imdb + "/" + s + "/" + e },
-{ id: "nontongo", name: "🔥 Server 6 • NontonGo VIP (Fast FHD)", q: "FHD", url: "https://nontongo.win/embed/tv/" + imdb + "/" + s + "/" + e },
-{ id: "autoembed", name: "🚀 Server 7 • AutoEmbed Pro (Multi-Audio)", q: "1080p", url: "https://autoembed.co/tv/imdb/" + imdb + "-" + s + "-" + e },
-{ id: "twoembed", name: "💎 Server 8 • 2Embed Cloud (Global)", q: "HD", url: "https://www.2embed.cc/embedtv/" + imdb + "&s=" + s + "&e=" + e },
-{ id: "vidsrc_me", name: "🌐 Server 9 • VidSrc ME (Auto-Mirror)", q: "1080p", url: "https://vidsrc.me/embed/tv/" + imdb + "/" + s + "/" + e }
- ]);
+push("vixsrc", "🧼 VixSrc (Cleanest • Multi-Sub)", "1080p", "https://vixsrc.to/tv/" + tmdb + "/" + s + "/" + e);
+push("embedwave", "🧼 EmbedWave (No-Ads Shell)", "1080p", "https://embedwave.cc/embed/tv/" + tmdb + "/" + s + "/" + e);
+push("vidnest", "🧼 VidNest (12 Sources • Auto-Next)", "1080p", "https://vidnest.fun/tv/" + tmdb + "/" + s + "/" + e);
+push("vidlink", "🧼 VidLink Pro (Hindi Subs)", "1080p", "https://vidlink.pro/tv/" + tmdb + "/" + s + "/" + e + vlParams);
+} else {
+push("vixsrc", "🧼 VixSrc (Cleanest • Multi-Sub)", "1080p", "https://vixsrc.to/movie/" + tmdb);
+push("embedwave", "🧼 EmbedWave (No-Ads Shell)", "1080p", "https://embedwave.cc/embed/movie/" + tmdb);
+push("vidnest", "🧼 VidNest (12 Sources)", "1080p", "https://vidnest.fun/movie/" + tmdb);
+push("vidlink", "🧼 VidLink Pro (Hindi Subs)", "1080p", "https://vidlink.pro/movie/" + imdb + vlParams);
 }
-return _ordered([
-{ id: "vidfast", name: "🧼 Server 1 • VidFast Pro (4K • Clean)", q: "4K", url: "https://vidfast.pro/movie/" + imdb },
-{ id: "vidlink", name: "🧼 Server 2 • VidLink Pro (Clean • Auto-Resume)", q: "1080p", url: "https://vidlink.pro/movie/" + imdb + vlParams },
-{ id: "vidsrc_sh", name: "⚡ Server 3 • VidSrc SH (Fastest HD)", q: "1080p", url: "https://vidsrc.sh/embed/movie/" + imdb },
-{ id: "vidsrc_to", name: "🎯 Server 4 • VidSrc TO (Multi-Q)", q: "1080p", url: "https://vidsrc.to/embed/movie/" + imdb },
-{ id: "vidsrc_pm", name: "🟢 Server 5 • VidSrc PM (ISP-Unblocked)", q: "1080p", url: "https://vidsrc.pm/embed/movie/" + imdb },
-{ id: "nontongo", name: "🔥 Server 6 • NontonGo VIP (Fast FHD)", q: "FHD", url: "https://nontongo.win/embed/movie/" + imdb },
-{ id: "autoembed", name: "🚀 Server 7 • AutoEmbed Pro (Multi-Audio)", q: "1080p", url: "https://autoembed.co/movie/imdb/" + imdb },
-{ id: "twoembed", name: "💎 Server 8 • 2Embed Cloud (Global)", q: "HD", url: "https://www.2embed.cc/embed/" + imdb },
-{ id: "vidsrc_me", name: "🌐 Server 9 • VidSrc ME (Auto-Mirror)", q: "1080p", url: "https://vidsrc.me/embed/movie/" + imdb }
-]);
+}
+// ===== TIER 2: IMDb-based mirrors (hamesha available) =====
+push("vidfast", "🚀 VidFast Pro (4K • Multi-Audio)", "4K", isSeries ? "https://vidfast.pro/tv/" + imdb + "/" + s + "/" + e : "https://vidfast.pro/movie/" + imdb);
+push("vidspark", "🆕 VidSpark (Fast FHD)", "1080p", isSeries ? "https://vidspark.to/tv/" + imdb + "/" + s + "/" + e : "https://vidspark.to/movie/" + imdb);
+if (!tmdb && !isSeries) push("vidlink", "🧼 VidLink Pro (Clean • Auto-Resume)", "1080p", "https://vidlink.pro/movie/" + imdb + vlParams);
+push("vidsrc_sh", "⚡ VidSrc SH (Fastest HD)", "1080p", isSeries ? "https://vidsrc.sh/embed/tv/" + imdb + "/" + s + "/" + e : "https://vidsrc.sh/embed/movie/" + imdb);
+push("vidsrc_to", "🎯 VidSrc TO (Multi-Q)", "1080p", isSeries ? "https://vidsrc.to/embed/tv/" + imdb + "/" + s + "/" + e : "https://vidsrc.to/embed/movie/" + imdb);
+push("vidsrc_pm", "🟢 VidSrc PM (ISP-Unblocked)", "1080p", isSeries ? "https://vidsrc.pm/embed/tv/" + imdb + "/" + s + "/" + e : "https://vidsrc.pm/embed/movie/" + imdb);
+push("nontongo", "🔥 NontonGo VIP (Fast FHD)", "FHD", isSeries ? "https://nontongo.win/embed/tv/" + imdb + "/" + s + "/" + e : "https://nontongo.win/embed/movie/" + imdb);
+push("autoembed", "🚀 AutoEmbed Pro (Multi-Audio)", "1080p", isSeries ? "https://autoembed.co/tv/imdb/" + imdb + "-" + s + "-" + e : "https://autoembed.co/movie/imdb/" + imdb);
+push("twoembed", "💎 2Embed Cloud (Global)", "HD", isSeries ? "https://www.2embed.cc/embedtv/" + imdb + "&s=" + s + "&e=" + e : "https://www.2embed.cc/embed/" + imdb);
+// ===== order (last-worked first) + renumber so "Server N" matches position =====
+return preferredCloud(list, type, vid).map((x, i) => ({ id: x.id, name: "Server " + (i + 1) + " • " + x.label, q: x.q, url: x.url }));
 }
 function renderPlayerServerBar(opts, activeMode, trackerUI) {
 const bar = $("#playerBar");
@@ -2012,7 +2020,7 @@ if (!bar) return;
 const directList = opts.sources || [];
 const pkey = String(opts.videoId || opts.metaId || "");
 const savedP = progress.get(pkey);
-const cloudList = buildCloudServers(opts.type || "movie", pkey, savedP ? savedP.t : 0);
+const cloudList = buildCloudServers(opts.type || "movie", pkey, savedP ? savedP.t : 0, opts.tmdbId);
 opts.cloudServers = cloudList;
 if (!directList.length && !cloudList.length && !opts.ytId) {
 bar.style.display = "none";
@@ -2086,7 +2094,7 @@ const defaultDur = opts.type === "series" ? 2700 : 6000; // 45m for series ep, 1
 let watchedSec = (prevProg && prevProg.t > 10 && prevProg.t < (prevProg.d || defaultDur) - 30) ? prevProg.t : 0;
 let totalDur = (prevProg && prevProg.d > 300) ? prevProg.d : defaultDur;
 let recPaused = false, lastExactMsg = 0;
-const cloudList = buildCloudServers(opts.type || "movie", pkey, watchedSec);
+const cloudList = buildCloudServers(opts.type || "movie", pkey, watchedSec, opts.tmdbId);
 opts.cloudServers = cloudList;
 const srv = cloudList[cloudIdx || 0];
 if (!srv) { toast("Cloud server available nahi hai", true); return; }
@@ -2322,6 +2330,7 @@ let type = item.type || "movie";
 const name = item.name || item.title || "Stream";
 const poster = item.poster || svgPoster(name, id);
 const backdrop = item.backdrop || svgBackdrop(name, id);
+const tmdbPromise = fetchMeta(type, String(id).split(":")[0]).catch(() => null);
 const freeMatch = FREE_ITEMS.find((f) => f.id === id) || FREETV_LIVE_ITEMS.find((f) => f.id === id);
 if (freeMatch || type === "free" || id.indexOf("free-") === 0 || id.indexOf("ftv-") === 0) {
 const f = freeMatch || FREE_ITEMS[0];
@@ -2410,8 +2419,11 @@ if (/\.(mkv|avi|flv|wmv|mov)$/.test(lu)) return -4;
 return 0;
 };
 directSources.sort((a, b) => (b.rank + playHint(b.url)) - (a.rank + playHint(a.url)));
-const cloudServers = buildCloudServers(type, vid);
+const tmdbRes = await Promise.race([tmdbPromise, new Promise((r) => setTimeout(() => r(null), 1500))]);
+const tmdbId = (tmdbRes && tmdbRes.meta && tmdbRes.meta.moviedb_id) || TMDB_CACHE[String(id).split(":")[0]] || "";
+const cloudServers = buildCloudServers(type, vid, 0, tmdbId);
 const playOpts = {
+tmdbId,
 title: epTitle,
 poster,
 backdrop,
@@ -2638,7 +2650,7 @@ const sect = $("#streamSect"), box = $("#streamBox");
 if (!sect || !box) return;
 sect.hidden = false;
 if (!noScroll) sect.scrollIntoView({ behavior: "smooth", block: "start" });
-const cloudList = buildCloudServers(vtype, vid);
+const cloudList = buildCloudServers(vtype, vid, 0, metaObj.moviedb_id);
 const mySeq = S._streamSeq = (S._streamSeq || 0) + 1; // race guard: episode jaldi switch ho to purana paint ignore
 // paintStreams: pehle cloud servers TURANT dikhao, addon streams aate hi merge karo
 const paintStreams = (groups, loading) => {
@@ -2687,6 +2699,7 @@ if (s.url && !seenU[s.url]) { seenU[s.url] = 1; allDirect.push({ url: s.url, lab
 const baseOpts = {
 title, poster: posterOf(metaObj), backdrop: backdropOf(metaObj),
 sources: allDirect.slice(0, 20), cloudServers: cloudList, ytId: firstYtId,
+tmdbId: metaObj.moviedb_id || TMDB_CACHE[String(vid).split(":")[0]] || "",
 metaId: vid, videoId: vid, type: vtype, genres: metaObj.genres,
 next: next ? { vid: next.vid, title: next.title, meta: metaObj } : null, metaName: m.name
 };
@@ -2700,7 +2713,7 @@ const st = g.streams[+el.dataset.i];
 if (st.ytId) { openYT(st.ytId, title, { id: vid, type: vtype, genres: metaObj.genres, poster: posterOf(metaObj), metaName: m.name }); return; }
 if (!st.url) {
 toast("🧲 Torrent/debrid-only link — browser me direct nahi chalta. Cloud Server se chala rahe hain (bina debrid jugaad)");
-const cIdx = (function () { try { const cl = buildCloudServers(vtype, vid, 0); return cl.length ? 0 : -1; } catch (e) { return -1; } })();
+const cIdx = (function () { try { const cl = buildCloudServers(vtype, vid, 0, metaObj.moviedb_id); return cl.length ? 0 : -1; } catch (e) { return -1; } })();
 if (cIdx >= 0) openCloudServer(baseOpts, cIdx);
 else toast("Is title ka koi cloud mirror nahi mila — addon me koi aur source try karo", true);
 return;
@@ -3476,7 +3489,7 @@ switchSource(srcIdx + 1, true);
 }
 else {
 const curOpts = S.current || opts;
-const cl = cloudHopTried ? [] : buildCloudServers(curOpts.type || "movie", String(curOpts.videoId || curOpts.metaId || pkey), 0);
+const cl = cloudHopTried ? [] : buildCloudServers(curOpts.type || "movie", String(curOpts.videoId || curOpts.metaId || pkey), 0, curOpts.tmdbId);
 if (cl && cl.length) {
 cloudHopTried = true;
 toast("☁️ Sab direct links fail — Cloud Server 1 (auto-transcode) laga rahe hain...");
