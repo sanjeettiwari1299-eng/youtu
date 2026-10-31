@@ -417,6 +417,10 @@ footer b{color:var(--txt)}
 #playerStage iframe{background:#000}
 #player.mini-mode{inset:auto 18px 18px auto!important;width:min(400px,92vw)!important;height:240px!important;border-radius:14px;border:2px solid var(--acc);box-shadow:0 20px 55px rgba(0,0,0,.92),0 0 28px rgba(0,255,136,.38);overflow:hidden;z-index:160;transition:width .22s,height .22s}
 #player.mini-mode .player-bar{display:none!important}
+/* Fullscreen: server list (player-bar) clean hide — bahar aane par wapas */
+#player.fs-mode .player-bar{display:none!important}
+#player.fs-mode .player-top{background:linear-gradient(180deg,rgba(0,0,0,.55),transparent)}
+body.fs-mode{overscroll-behavior:none}
 #player.mini-mode .player-top{padding:7px 10px;background:linear-gradient(180deg,rgba(0,0,0,.9),transparent)}
 #player.mini-mode .player-top h3{font-size:12px}
 #player.mini-mode .icon-btn{width:28px;height:28px;font-size:13px;border-radius:7px}
@@ -587,7 +591,7 @@ padding:13px 20px;border-radius:999px;box-shadow:0 10px 30px rgba(229,9,20,.45);
 <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.17/dist/hls.min.js" integrity="sha384-9v3HcdYrO3D+OPDTjZ40RXocgE4GtXVCd3/mCS62JsM93JXgI1afJVuwjFvsu6ni" crossorigin="anonymous" referrerpolicy="no-referrer" onerror="var s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.17/hls.min.js';s.integrity='sha384-9v3HcdYrO3D+OPDTjZ40RXocgE4GtXVCd3/mCS62JsM93JXgI1afJVuwjFvsu6ni';s.crossOrigin='anonymous';s.referrerPolicy='no-referrer';document.head.appendChild(s)"></script>
 <script>
 "use strict";
-const APP_BUILD = "v2.13-safesandbox";
+const APP_BUILD = "v2.14-fsclean";
 const $ = (s, r) => (r || document).querySelector(s);
 const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
 const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -2019,6 +2023,7 @@ if (!el) return;
 el.classList.toggle("np-fake-fs");
 const on = el.classList.contains("np-fake-fs");
 try { document.body.style.overflow = on ? "hidden" : ""; } catch (e) {}
+try { if (window.__seSyncFsMode) window.__seSyncFsMode(); } catch (e) {}
 toast(on ? "🖥️ Cinema mode ON (browser ne native fullscreen block kiya) — phone ko landscape karo, Esc se band" : "🖥️ Cinema mode OFF");
 }
 function enterFullscreenEl(el) {
@@ -4562,7 +4567,8 @@ if (NP.cleanup) { try { NP.cleanup(); } catch (e) {} NP.cleanup = null; }
 NP.closeMenu = null;
 clearTimeout(S.nextTimer); destroyHls();
 if (document.fullscreenElement) { try { document.exitFullscreen().catch(function () {}); } catch (e) {} }
-player.classList.remove("np-idle", "mini-mode");
+player.classList.remove("np-idle", "mini-mode", "fs-mode");
+try { document.body.classList.remove("fs-mode"); } catch (e) {}
 const mBtn = $("#playerMini");
 if (mBtn) mBtn.textContent = "🗗";
 $("#playerBar").style.display = "";
@@ -6011,6 +6017,22 @@ if ((changed || S.d1Hydrated) && $("#player").hidden) { S._lastRouteAt = 0; rout
       try { img.setAttribute("fetchpriority","high"); img.decoding = "async"; } catch (e) {}
     });
   }
+
+  /* ---- Fullscreen: server bar auto-hide (clean cinema view) ---- */
+  function syncFsMode(){
+    var pl = document.getElementById("player");
+    var on = !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement) || !!(pl && pl.classList.contains("np-fake-fs"));
+    if (pl) pl.classList.toggle("fs-mode", on && !pl.hidden);
+    document.body.classList.toggle("fs-mode", on && !!pl && !pl.hidden);
+    if (on && !window._seFsHint) {
+      window._seFsHint = 1;
+      try { if (pl && !pl.hidden) toast("\uD83D\uDDA5\uFE0F Fullscreen me servers bar hidden \u2014 Esc se bahar aake server badlo"); } catch (e) {}
+    }
+  }
+  window.__seSyncFsMode = syncFsMode;
+  ["fullscreenchange","webkitfullscreenchange","mozfullscreenchange","MSFullscreenChange"].forEach(function(ev){
+    document.addEventListener(ev, function(){ setTimeout(syncFsMode, 30); });
+  });
 
   /* ---- DOM observer (debounced) ---- */
   var app = document.getElementById("app"), mo = null, mt = null;
