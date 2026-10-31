@@ -514,9 +514,20 @@ padding:13px 20px;border-radius:999px;box-shadow:0 10px 30px rgba(229,9,20,.45);
 @keyframes updIn{from{opacity:0;transform:translateX(-50%) translateY(14px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
 
 .np-deadprobe{margin-top:10px;font:600 12.5px/1.5 ui-monospace,Menlo,Consolas,monospace;color:#9fe8ff;background:rgba(34,211,238,.08);border:1px solid rgba(34,211,238,.25);padding:8px 12px;border-radius:9px;max-width:520px;word-break:break-word}
-.dl-testout{margin:12px 0 4px;font:600 13px/1.55 ui-monospace,Menlo,Consolas,monospace;padding:11px 14px;border-radius:11px;max-width:940px;word-break:break-word;background:rgba(255,255,255,.05);border:1px solid var(--line);color:var(--muted)}
+.dl-testout{white-space:pre-line;margin:12px 0 4px;font:600 13px/1.55 ui-monospace,Menlo,Consolas,monospace;padding:11px 14px;border-radius:11px;max-width:940px;word-break:break-word;background:rgba(255,255,255,.05);border:1px solid var(--line);color:var(--muted)}
 .dl-testout.ok{background:rgba(52,211,153,.1);border-color:rgba(52,211,153,.35);color:#a7f3d0}
 .dl-testout.bad{background:rgba(248,113,113,.1);border-color:rgba(248,113,113,.35);color:#fecaca}
+
+.sbx-box{background:rgba(139,92,246,.06);border:1px solid rgba(139,92,246,.28);border-radius:14px;padding:14px 16px;margin:-6px 0 22px}
+.sbx-head{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-weight:800;font-size:14px}
+.sbx-cur{background:rgba(52,211,153,.16);border:1px solid rgba(52,211,153,.4);color:#a7f3d0;padding:2px 9px;border-radius:20px;font-size:12px}
+.sbx-opts{display:flex;gap:9px;flex-wrap:wrap;margin:12px 0 10px}
+.sbx-opt{flex:1 1 220px;text-align:left;background:var(--panel);border:1px solid var(--line);color:var(--txt);border-radius:11px;padding:10px 13px;cursor:pointer;transition:.18s;display:flex;flex-direction:column;gap:4px}
+.sbx-opt b{font-size:13.5px}
+.sbx-opt span{font-size:11.8px;color:var(--muted);line-height:1.5}
+.sbx-opt:hover{border-color:var(--acc);transform:translateY(-1px)}
+.sbx-opt.on{border-color:var(--green);background:rgba(52,211,153,.1);box-shadow:0 0 0 1px rgba(52,211,153,.35) inset}
+.sbx-note{font-size:12px;color:var(--muted);line-height:1.6}
 </style>
 </head>
 <body data-theme="netflix">
@@ -576,7 +587,7 @@ padding:13px 20px;border-radius:999px;box-shadow:0 10px 30px rgba(229,9,20,.45);
 <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.17/dist/hls.min.js" integrity="sha384-9v3HcdYrO3D+OPDTjZ40RXocgE4GtXVCd3/mCS62JsM93JXgI1afJVuwjFvsu6ni" crossorigin="anonymous" referrerpolicy="no-referrer" onerror="var s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.17/hls.min.js';s.integrity='sha384-9v3HcdYrO3D+OPDTjZ40RXocgE4GtXVCd3/mCS62JsM93JXgI1afJVuwjFvsu6ni';s.crossOrigin='anonymous';s.referrerPolicy='no-referrer';document.head.appendChild(s)"></script>
 <script>
 "use strict";
-const APP_BUILD = "v2.11-linkdiag";
+const APP_BUILD = "v2.13-safesandbox";
 const $ = (s, r) => (r || document).querySelector(s);
 const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
 const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -2062,12 +2073,47 @@ a.remove();
 try { window.open(u, "_blank", "noopener,noreferrer"); } catch (e2) {}
 }
 }
-function cloudSandboxOn() { try { return store.get("se_sandbox", true) !== false; } catch (e) { return true; } }
-function sandboxAttr() {
-if (!cloudSandboxOn()) return "";
-// allow-popups / allow-top-navigation JAAN-BUJH kar nahi diye → redirect & popup ads block
-return ' sandbox="allow-scripts allow-same-origin allow-forms allow-presentation allow-downloads"';
+/* ===== Sandbox Shield — 3 modes =====
+   shield : sabse strict — popup / top-redirect / download / modal sab blocked (ads 0)
+   compat : players ko downloads + modals ki permission, par POPUP aur TOP-REDIRECT abhi bhi blocked (default)
+   off    : sandbox hi nahi — maximum compatibility, ads aa sakte hain (top-nav guard + browser popup blocker bachate hain) */
+const SANDBOX_MODES = {
+shield: { label: "🛡️ Shield", attr: ' sandbox="allow-scripts allow-same-origin allow-forms allow-presentation"', desc: "Full ad-block: popup, top-redirect, download, modal — sab band. Kuch players ismein blank aa sakte hain." },
+compat: { label: "⚖️ Compat", attr: ' sandbox="allow-scripts allow-same-origin allow-forms allow-presentation allow-downloads allow-modals"', desc: "Server compatibility best + popup/top-redirect ads abhi bhi blocked. (Recommended)" },
+off: { label: "🔓 Off", attr: "", desc: "Sandbox band — har server chalega, par ads/popups aa sakte hain. Top-nav guard + browser popup blocker on rehte hain." }
+};
+function sandboxMode() {
+try {
+const m = String(store.get("se_sandbox_mode", "") || "");
+if (m && SANDBOX_MODES[m]) return m;
+const legacy = store.get("se_sandbox", null);
+if (legacy === false) return "off";
+return "compat";
+} catch (e) { return "compat"; }
 }
+function setSandboxMode(m) {
+try { if (!SANDBOX_MODES[m]) return; store.set("se_sandbox_mode", m); store.set("se_sandbox", m !== "off"); } catch (e) {}
+}
+function cloudSandboxOn() { try { return sandboxMode() !== "off"; } catch (e) { return true; } }
+function sandboxAttr() { try { return SANDBOX_MODES[sandboxMode()].attr; } catch (e) { return SANDBOX_MODES.compat.attr; } }
+/* Sandbox OFF mode me top-level redirect ads se bachav: accidental navigation par confirm prompt */
+function armTopNavGuard() {
+try {
+if (window._seNavGuard) return;
+window._seNavGuard = true;
+window.addEventListener("beforeunload", function (e) {
+try {
+if (sandboxMode() !== "off") return;
+const pl = document.getElementById("player");
+if (!pl || pl.hidden) return;
+if (Date.now() - (window._seNavOk || 0) < 6000) return;
+const msg = "🔓 Sandbox OFF hai — ad aapko dusri site par le ja sakta hai. Phir bhi jaana hai?";
+e.preventDefault(); e.returnValue = msg; return msg;
+} catch (err) {}
+});
+} catch (e) {}
+}
+function allowIntentionalNav() { try { window._seNavOk = Date.now(); } catch (e) {} }
 function penalizeServer(id) {
 try {
 if (!id) return;
@@ -2177,7 +2223,7 @@ h += '<div id="cloudTrackBar" style="display:flex;align-items:center;gap:6px;mar
 '<button type="button" class="srv-pill" id="cloudFxBtn" style="padding:2px 8px;font-size:11px" title="Apply Cyber Video FX Filters on Cloud Player">🎨 FX</button>' +
 '<button type="button" class="srv-pill" id="cloudZoomBtn" style="padding:2px 8px;font-size:11px" title="Cinema Zoom / Crop Black Bars">⛶ Zoom</button>' +
 '<button type="button" class="srv-pill" id="cloudFsBtn" style="padding:2px 8px;font-size:11px;border-color:var(--acc2);color:var(--acc2)" title="Fullscreen (F) — cloud server ke liye">🖥️ Fullscreen</button>' +
-'<button type="button" class="srv-pill" id="cloudSandboxBtn" style="padding:2px 8px;font-size:11px;border-color:var(--green);color:var(--green)" title="Sandbox Shield: iframe ko popup + top-redirect se rokta hai. Kisi server par video blank lage to ise OFF karo.">🧼 Sandbox: ' + (cloudSandboxOn() ? "ON" : "OFF") + '</button>' +
+'<button type="button" class="srv-pill" id="cloudSandboxBtn" style="padding:2px 8px;font-size:11px;border-color:' + (sandboxMode() === "off" ? "#fbbf24" : "var(--green)") + ';color:' + (sandboxMode() === "off" ? "#fbbf24" : "var(--green)") + '" title="Sandbox mode: Shield (full ad-block) → Compat (best playback, popups still blocked) → Off (ads possible). Tap to change.">🧼 Sandbox: ' + SANDBOX_MODES[sandboxMode()].label + '</button>' +
 '<button type="button" class="srv-pill" id="cloudNewTab" style="padding:2px 8px;font-size:11px" title="Server ko naye tab me kholo (isolated, noopener)">↗ New Tab</button>' +
 '<span id="cloudTimeBadge" style="color:var(--acc);font-weight:800;font-family:monospace">⚡ RAM 0:00</span>' +
 '<input id="cloudScrub" type="range" min="0" max="100" value="0" title="Drag to sync your current watch position" style="width:82px;accent-color:var(--acc);cursor:pointer">' +
@@ -2246,6 +2292,21 @@ toast("⏯ Watch Progress Resume: " + fmtTime(watchedSec) + " se record ho raha 
 $("#playerTitle").textContent = "▶ " + opts.title + " • [" + srv.name + "]";
 let adShield = store.get("se_adshield", true) !== false;
 stage.innerHTML = '<iframe id="cloudIframe" src="' + esc(srv.url) + '"' + sandboxAttr() + ' referrerpolicy="no-referrer" allow="autoplay; encrypted-media; fullscreen; picture-in-picture" allowfullscreen style="width:100%;height:100%;border:0;background:#000;transition:transform .2s,filter .2s"></iframe>';
+try {
+if (sandboxMode() === "shield" && !S._shieldHintAt) {
+S._shieldHintAt = Date.now();
+setTimeout(() => {
+try {
+if (!S._shieldHintAt || Date.now() - S._shieldHintAt < 8000) return;
+const cf = document.getElementById("cloudIframe");
+if (!cf || $("#player").hidden) return;
+if (S._shieldHintShown) return;
+S._shieldHintShown = true;
+toast("⚖️ Video blank hai? Sandbox pill dabao → Compat mode (ads phir bhi blocked)");
+} catch (e) {}
+}, 9000);
+}
+} catch (e) {}
 const _ifr0 = $("#cloudIframe");
 if (_ifr0) {
 let _hops = 0;
@@ -2369,9 +2430,11 @@ const cfsBtn = $("#cloudFsBtn");
 if (cfsBtn) cfsBtn.onclick = () => toggleFsSmart();
 const sbxBtn = $("#cloudSandboxBtn");
 if (sbxBtn) sbxBtn.onclick = () => {
-const wasOn = cloudSandboxOn();
-store.set("se_sandbox", !wasOn);
-toast(!wasOn ? "🧼 Sandbox Shield ON — popup + redirect ads blocked" : "⚠️ Sandbox Shield OFF — agar video blank tha to ab chalega, par ads bhi aa sakte hain");
+const order = ["compat", "shield", "off"];
+const cur = sandboxMode();
+const next = order[(order.indexOf(cur) + 1) % order.length];
+setSandboxMode(next);
+toast((next === "off" ? "🔓" : next === "shield" ? "🛡️" : "⚖️") + " Sandbox: " + SANDBOX_MODES[next].label + " — " + SANDBOX_MODES[next].desc);
 openCloudServer(S.current || opts, cloudIdx || 0);
 };
 const ntBtn = $("#cloudNewTab");
@@ -3017,6 +3080,21 @@ n = n.replace(/^[-–—:]+|[-–—:]+$/g, "").replace(/\s+/g, " ").trim();
 return n;
 } catch (e) { return linkName(u); }
 }
+function normalizeMediaUrl(u) {
+let s = String(u || "").trim();
+try { s = s.replace(/^[<("'`]+|[>)"'`]+$/g, ""); } catch (e) {}
+s = s.replace(/&amp;/gi, "&").replace(/&#0*38;/g, "&").replace(/&quot;/gi, "").replace(/&nbsp;/gi, "").trim();
+return s;
+}
+/* Signed / IP-locked links: proxy unhe tod deta hai (404/403) — inhe sirf direct chalana chahiye */
+function isSignedUrl(u) {
+try {
+const s = String(u || "");
+if (/[?&](sign|signature|sig|token|expires|exp|hdnts|policy|key-pair-id|auth|hash)=/i.test(s)) return true;
+if (/[?&](ip|client_ip|ipaddr|ip_address)=/i.test(s)) return true;
+return false;
+} catch (e) { return false; }
+}
 function isProxiedUrl(u) {
 try {
 const s = String(u || "");
@@ -3034,14 +3112,17 @@ const base = proxyBaseUrl();
 const ext = linkExt(u);
 const tag = ext ? " • " + ext.toUpperCase() : "";
 if (isProxiedUrl(u)) return [{ url: u, label: "🛡️ Pehle se proxied link" + tag, quality: "HD", noProxy: true, proxied: true }];
+if (isSignedUrl(u)) return [{ url: u, label: "🔒 Signed link — Direct only" + tag, quality: "HD", noProxy: true, signed: true }];
 const out = [];
 if (base && useProxy !== false) out.push({ url: joinProxy(base, u), label: "🛡️ Worker Proxy" + tag, quality: "HD", noProxy: true, proxied: true });
 out.push({ url: u, label: "🎬 Direct Link" + tag, quality: "HD", noProxy: true });
 return out;
 }
 function directPlay(rawUrl, useProxy) {
-const u = String(rawUrl || "").trim();
+const u = normalizeMediaUrl(rawUrl);
 if (!/^https?:\/\/\S+$/i.test(u)) { toast("❌ Sahi link daalo (https://… se shuru ho)", true); return false; }
+if (u !== String(rawUrl || "").trim()) toast("🔧 Link saaf kiya (&amp; → &)");
+if (isSignedUrl(u) && useProxy !== false) toast("🔒 Signed/IP-locked link — proxy skip, direct play");
 directHistAdd(u);
 openPlayer({
 title: linkName(u),
@@ -3072,7 +3153,7 @@ app.innerHTML = '<div class="wrap"><h1 class="page-title">🔗 Link se Play</h1>
 (hist.length ? '<button class="btn btn-sm btn-ghost" type="button" id="dlClearHist">🗑 History clear</button>' : "") +
 '</div>' +
 (base ? '<p class="dl-hint">Proxy: <code>' + esc(base) + '</code></p>' : '<p class="dl-hint">Proxy set karo taaki blocked / CORS wale links bhi chalein.</p>') +
-'<div class="dl-warn"><b>⚠️ MKV / AVI note:</b> browser (Chrome, Edge, Safari, Firefox) MKV container nahi chalate — proxy bytes de dega, par decode browser karega. MKV ke liye <b>VLC / MX Player</b> me proxied link kholo, ya <b>.mp4 / .m3u8</b> version use karo. Player fail hone par wahan se “🟠 VLC me kholo” / “🔗 Link Copy” milta hai.</div>' +
+'<div class="dl-warn"><b>🔒 Signed links:</b> jinke URL me <code>sign=</code>, <code>token=</code>, <code>expires=</code> ya <code>IP=</code> ho — unhe <b>proxy se na chalao</b> (server 404/403 deta hai, kyunki signature aapke IP se bandha hota hai). App aise links khud direct chalata hai.<br><br><b>⚠️ MKV / AVI note:</b> browser (Chrome, Edge, Safari, Firefox) MKV container nahi chalate — proxy bytes de dega, par decode browser karega. MKV ke liye <b>VLC / MX Player</b> me proxied link kholo, ya <b>.mp4 / .m3u8</b> version use karo. Player fail hone par wahan se “🟠 VLC me kholo” / “🔗 Link Copy” milta hai.</div>' +
 '<div class="dl-quick"><span class="dl-qlabel">Quick actions:</span>' +
 '<button type="button" class="btn btn-sm btn-ghost" id="dlCopyProxy">📋 Proxied link copy</button>' +
 '<button type="button" class="btn btn-sm btn-ghost" id="dlOpenVlc">🟠 VLC me kholo</button>' +
@@ -3092,7 +3173,7 @@ directPlay(u, cb ? cb.checked : false);
 };
 const dlCurrent = () => {
 const inp = $("#dlUrl");
-const raw = String((inp && inp.value) || pre || "").trim();
+const raw = normalizeMediaUrl((inp && inp.value) || pre || "");
 if (!/^https?:\/\/\S+$/i.test(raw)) { toast("Pehle upar link paste karo", true); return ""; }
 return raw;
 };
@@ -3125,7 +3206,7 @@ const raw = dlCurrent();
 if (!raw) return;
 const link = dlProxied(raw);
 copyText(link);
-try { location.href = "vlc://" + link; } catch (e) {}
+try { allowIntentionalNav(); location.href = "vlc://" + link; } catch (e) {}
 toast("🟠 VLC ke liye link copy ho gaya — VLC → Open Network Stream me paste karo");
 };
 const tl = $("#dlTestLink");
@@ -3133,12 +3214,24 @@ if (tl) tl.onclick = () => {
 const raw = dlCurrent();
 if (!raw) return;
 const out = $("#dlTestOut");
-const target = dlProxied(raw);
-if (out) { out.hidden = false; out.className = "dl-testout"; out.textContent = "🔎 Testing " + target.slice(0, 90) + "…"; }
-probeLinkStatus(target).then((txt) => {
+const base = proxyBaseUrl();
+if (out) { out.hidden = false; out.className = "dl-testout"; out.textContent = "🔎 Testing… (2 byte range request)"; }
+const rows = [];
+const finish = () => {
 if (!out) return;
-out.textContent = "🌐 " + txt + "  —  " + (isProxiedUrl(raw) ? "proxied link" : "via proxy");
-out.className = "dl-testout" + (/HTTP 2\d\d/.test(txt) ? " ok" : " bad");
+out.textContent = rows.join("\n");
+const allOk = rows.some((r) => /HTTP 2\d\d/.test(r)) && !rows.some((r) => /HTTP (?:4|5)\d\d|network|timeout/i.test(r));
+out.className = "dl-testout" + (allOk ? " ok" : " bad");
+};
+probeLinkStatus(raw).then((txt) => {
+rows.push("🎬 Direct: " + txt);
+const wantProxy = base && !isProxiedUrl(raw) && !isSignedUrl(raw);
+if (wantProxy) {
+probeLinkStatus(joinProxy(base, raw)).then((p) => { rows.push("🛡️ Worker Proxy: " + p); finish(); });
+} else {
+if (base && isSignedUrl(raw)) rows.push("🔒 Signed/IP-locked link — proxy test skip (proxy isse 404 karta hai)");
+finish();
+}
 });
 };
 const fs2 = $("#dlFindServers");
@@ -3199,6 +3292,9 @@ app.innerHTML = '<div class="wrap"><div style="display:flex;align-items:baseline
 '<form class="addon-form" id="proxyForm" style="align-items:center"><input id="proxyURL" placeholder="🛡️ Apna proxy URL (Cloudflare Worker) — blocked/na chalne wale streams isse chalenge" value="' + esc(store.get("se_proxy_url", "")) + '"><button class="btn btn-primary" type="submit">🛡️ Save Proxy</button><button class="btn btn-ghost" type="button" id="proxyTest">🧪 Test</button><button class="btn btn-ghost" type="button" id="proxyClear">✕</button></form>' +
 '<p style="font-size:12.5px;color:var(--muted);margin:-14px 0 20px 2px">Custom proxy set hone par player sabse pehle yahi try karega, phir public proxies. Format: <code>https://app.workers.dev</code> ya <code>https://app.workers.dev/?u=</code> (token ho to <code>&amp;k=TOKEN</code> bhi chalega)</p>' +
 '<div style="margin:-10px 0 20px;display:flex;gap:8px;flex-wrap:wrap"><a class="btn btn-sm btn-ghost" href="#/direct" data-route="#/direct">🔗 Link se Play karo (worker proxy)</a></div>' +
+'<div class="sbx-box"><div class="sbx-head">🧼 Sandbox Shield <span class="sbx-cur">' + SANDBOX_MODES[sandboxMode()].label + '</span><span style="font-size:12px;color:var(--muted);font-weight:600">— cloud server iframe ka ad-protection level</span></div>' +
+'<div class="sbx-opts">' + Object.keys(SANDBOX_MODES).map((k) => '<button type="button" class="sbx-opt' + (sandboxMode() === k ? " on" : "") + '" data-sbx="' + k + '"><b>' + SANDBOX_MODES[k].label + '</b><span>' + SANDBOX_MODES[k].desc + '</span></button>').join("") + '</div>' +
+'<div class="sbx-note">Default <b>⚖️ Compat</b>: playback zyada servers pe chalta hai aur popup/top-redirect ads phir bhi blocked rehte hain. <b>🔓 Off</b> sirf tab jab koi server Compat me bhi blank ho — us case me app tab-band hone/redirect par confirm prompt dikhata hai.</div></div>' +
 (quickInstallHTML ? '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:-10px 0 20px"><span style="font-size:13px;color:var(--muted);font-weight:700">⚡ Quick Install:</span>' + quickInstallHTML + "</div>" : "") +
 ((S.addons.length || failCards) ? '<div class="addon-grid">' + cards + "</div>"
 : '<div class="empty"><div class="big">🧩</div><h3>Koi addon installed nahi</h3><p>Upar URL daal ke install karo.</p></div>') +
@@ -3249,6 +3345,7 @@ store.set("se_proxy_url", pv);
 toast(pv ? "🛡️ Custom proxy save ho gaya — ab auto-fix me sabse pehle yahi chalega" : "Custom proxy hata diya");
 };
 $("#proxyClear").onclick = () => { store.set("se_proxy_url", ""); $("#proxyURL").value = ""; toast("Custom proxy hata diya"); };
+$$("[data-sbx]").forEach((b) => { b.onclick = () => { setSandboxMode(b.dataset.sbx); toast("🧼 Sandbox: " + SANDBOX_MODES[b.dataset.sbx].label); viewAddons(); }; });
 $("#proxyTest").onclick = async () => {
 const pv = ($("#proxyURL").value || "").trim();
 if (!pv) { toast("Pehle proxy URL daalo", true); return; }
@@ -3302,7 +3399,7 @@ const cr = r.headers.get("content-range") || "";
 const cl = r.headers.get("content-length") || "";
 const size = cr ? cr.split("/")[1] : cl;
 const tag = r.status === 200 || r.status === 206 ? " OK" : r.status === 404 ? " (link galat ya expire)" : r.status === 403 ? " (blocked / token galat)" : r.status === 401 ? " (auth chahiye)" : "";
-const mb = size && /^\d+$/.test(size) ? " • " + (Math.round((+size / 1048576) * 10) / 10) + " MB" : "";
+const mb = size && /^\d+$/.test(size) ? (" • " + (+size >= 1048576 ? (Math.round((+size / 1048576) * 10) / 10) + " MB" : Math.max(1, Math.round(+size / 1024)) + " KB")) : "";
 fin("HTTP " + r.status + tag + " • " + ct + mb);
 try { if (r.body && r.body.cancel) r.body.cancel(); } catch (e) {}
 })
@@ -3763,13 +3860,13 @@ const looksFile = ["mp4", "m3u8", "webm", "mkv", "mov", "m4v", "mpd"].some((e) =
 const edot = lu.lastIndexOf(".");
 const ext = edot > -1 ? lu.slice(edot + 1) : "";
 const noPlay = ext === "mkv" || ext === "avi";
-return { u, isHttp, looksFile, frameable: u.indexOf("https://") === 0 && !looksFile, ext, noPlay };
+return { u, isHttp, looksFile, frameable: u.indexOf("https://") === 0 && !looksFile, ext, noPlay, signed: isSignedUrl(u) };
 };
 const showDead = () => {
 spin.hidden = true;
 player.classList.remove("np-idle");
 dead.innerHTML = '<div class="np-deadcard"><div class="big">📺</div><h3>Video nahi chali 😞</h3>' +
-"<p>" + (deadInfo().u ? "Aakhri link: <b>" + esc(deadInfo().u.split("/")[2] || "") + "</b><br>" : "") + "Saare " + sources.length + " links fail ho gaye." + (deadInfo().isHttp ? (S.upgradedHttp ? " 🔓 http link tha — https bana ke try kiya, host ne jawab nahi diya." : (location.protocol === "https:" ? " 🔓 Ye link http:// hai — browser https site pe http video rokta hai (mixed content)." : " http link bhi fail ho gaya.")) : "") + (deadInfo().noPlay ? " <b>" + esc(deadInfo().ext.toUpperCase()) + "</b> format browser support nahi karta — VLC me chalao (neeche button dabao)." : (deadInfo().frameable ? " Ye video-file nahi, <b>page link</b> lagta hai — neeche Site-player try karo." : " Wapas jao, ya VLC/MX me try karo.")) + "</p>" +
+"<p>" + (deadInfo().u ? "Aakhri link: <b>" + esc(deadInfo().u.split("/")[2] || "") + "</b><br>" : "") + "Saare " + sources.length + " links fail ho gaye." + (deadInfo().isHttp ? (S.upgradedHttp ? " 🔓 http link tha — https bana ke try kiya, host ne jawab nahi diya." : (location.protocol === "https:" ? " 🔓 Ye link http:// hai — browser https site pe http video rokta hai (mixed content)." : " http link bhi fail ho gaya.")) : "") + (deadInfo().signed ? " 🔒 Ye <b>signed / IP-locked</b> link hai — proxy se 404 hi aayega, isliye direct chalana zaroori hai (browser ka IP hi signature match karta hai)." : "") + (deadInfo().noPlay ? " <b>" + esc(deadInfo().ext.toUpperCase()) + "</b> format browser support nahi karta — VLC me chalao (neeche button dabao)." : (deadInfo().frameable ? " Ye video-file nahi, <b>page link</b> lagta hai — neeche Site-player try karo." : " Wapas jao, ya VLC/MX me try karo.")) + "</p>" +
 '<div class="np-deadbtns">' +
 '<button class="np-upplay" id="npDeadCloud">☁️ Cloud Server 1</button>' +
 '<button class="np-upplay" id="npDeadBack">🔙 Wapas Jao</button>' +
@@ -5813,6 +5910,7 @@ toast("⚠ " + m.slice(0, 80) + " — refresh karo (Ctrl+R)", true);
 });
 applyTheme("netflix");
 initThemeUI();
+try { armTopNavGuard(); } catch (e) {}
 initMatrix();
 initHud();
 initCmdPalette();
@@ -5948,7 +6046,7 @@ if ((changed || S.d1Hydrated) && $("#player").hidden) { S._lastRouteAt = 0; rout
     b.onclick = function(){
       b.textContent = "\u23F3 Update ho raha hai\u2026";
       var done = function(){
-        try { location.replace(location.pathname + "?u=" + Date.now() + location.hash); } catch (e) { try { location.reload(); } catch (e2) {} }
+        try { allowIntentionalNav(); location.replace(location.pathname + "?u=" + Date.now() + location.hash); } catch (e) { try { allowIntentionalNav(); location.reload(); } catch (e2) {} }
       };
       Promise.resolve()
         .then(function(){ return (window.caches ? caches.keys() : []); })
