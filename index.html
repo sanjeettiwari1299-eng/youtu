@@ -532,6 +532,44 @@ padding:13px 20px;border-radius:999px;box-shadow:0 10px 30px rgba(229,9,20,.45);
 .sbx-opt:hover{border-color:var(--acc);transform:translateY(-1px)}
 .sbx-opt.on{border-color:var(--green);background:rgba(52,211,153,.1);box-shadow:0 0 0 1px rgba(52,211,153,.35) inset}
 .sbx-note{font-size:12px;color:var(--muted);line-height:1.6}
+
+/* ===== All-Servers page (EmbedWave style) ===== */
+.svp{padding-bottom:44px}
+.svp-head{display:flex;gap:14px;align-items:center;margin:20px 0 16px;flex-wrap:wrap}
+.svp-back{width:38px;height:38px;flex:0 0 38px;border-radius:50%;border:1px solid var(--line);background:var(--panel);color:var(--txt);font-size:18px;cursor:pointer;transition:.16s}
+.svp-back:hover{border-color:var(--acc);transform:translateX(-2px)}
+.svp-poster{width:52px;height:74px;object-fit:cover;border-radius:8px;background:#20264a}
+.svp-titlebox{flex:1;min-width:180px}
+.svp-title{font-size:clamp(19px,3vw,26px);font-weight:900;line-height:1.15}
+.svp-sub{font-size:12.5px;color:var(--muted);margin-top:4px}
+.svp-eps{display:flex;gap:8px;flex-wrap:wrap}
+.svp-eps label{display:flex;flex-direction:column;gap:4px;font-size:10.5px;color:var(--muted);font-weight:800;text-transform:uppercase;letter-spacing:.5px}
+.svp-eps select{background:var(--panel);border:1px solid var(--line);color:var(--txt);padding:7px 10px;border-radius:9px;font-size:12.5px;max-width:220px;outline:0}
+.svp-stage{position:relative;width:100%;aspect-ratio:16/9;max-height:min(70vh,640px);background:#000;border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.svp-stage iframe{width:100%;height:100%;border:0;background:#000}
+.svp-badge{position:absolute;top:10px;left:12px;background:rgba(5,8,18,.74);border:1px solid rgba(255,255,255,.14);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);padding:6px 11px;border-radius:9px;font-size:12px;color:#dfe6ff;pointer-events:none;max-width:58%}
+.svp-stagebtns{position:absolute;top:10px;right:10px;display:flex;gap:6px}
+.svp-stagebtns button{width:34px;height:34px;border-radius:9px;border:1px solid rgba(255,255,255,.16);background:rgba(5,8,18,.74);color:#fff;font-size:15px;cursor:pointer;-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
+.svp-stagebtns button:hover{background:rgba(139,92,246,.55)}
+.svp-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:12px 0 4px}
+.svp-hint{font-size:12px;color:var(--muted)}
+.svp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(232px,1fr));gap:10px;margin-top:10px}
+.svp-card{display:flex;align-items:center;gap:10px;text-align:left;background:var(--panel);border:1px solid var(--line);color:var(--txt);padding:11px 12px;border-radius:12px;cursor:pointer;transition:.16s;font:inherit}
+.svp-card:hover{border-color:var(--acc);transform:translateY(-1px)}
+.svp-card.on{border-color:var(--green);background:rgba(52,211,153,.1);box-shadow:0 0 0 1px rgba(52,211,153,.3) inset}
+.svp-num{width:22px;height:22px;flex:0 0 22px;border-radius:50%;background:rgba(255,255,255,.08);font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;color:var(--muted)}
+.svp-card.on .svp-num{background:var(--green);color:#05130d}
+.svp-info{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.svp-info b{font-size:12.8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.svp-info small{font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.svp-q{font-size:10.5px;font-weight:800;padding:2px 7px;border-radius:20px;background:rgba(34,211,238,.12);color:var(--acc2);border:1px solid rgba(34,211,238,.3);white-space:nowrap}
+.svp-dot{width:8px;height:8px;flex:0 0 8px;border-radius:50%;background:var(--green)}
+.svp-dot.warn{width:auto;height:auto;flex:0 0 auto;font-size:12px;border-radius:0;background:none}
+.svp-foot{font-size:12px;color:var(--muted);margin-top:14px;line-height:1.6;max-width:900px}
+.svp-stage:fullscreen{max-height:none;aspect-ratio:auto;border-radius:0;border:0}
+.svp-stage:-webkit-full-screen{max-height:none;aspect-ratio:auto;border-radius:0;border:0}
+.svp-stage.sv-fs{position:fixed;inset:0;z-index:1000;max-height:none;aspect-ratio:auto;border-radius:0;border:0}
+@media (max-width:640px){.svp-poster{display:none}.svp-badge{font-size:11px;max-width:50%}.svp-grid{grid-template-columns:1fr}.svp-title{font-size:18px}}
 </style>
 </head>
 <body data-theme="netflix">
@@ -591,7 +629,7 @@ padding:13px 20px;border-radius:999px;box-shadow:0 10px 30px rgba(229,9,20,.45);
 <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.17/dist/hls.min.js" integrity="sha384-9v3HcdYrO3D+OPDTjZ40RXocgE4GtXVCd3/mCS62JsM93JXgI1afJVuwjFvsu6ni" crossorigin="anonymous" referrerpolicy="no-referrer" onerror="var s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.17/hls.min.js';s.integrity='sha384-9v3HcdYrO3D+OPDTjZ40RXocgE4GtXVCd3/mCS62JsM93JXgI1afJVuwjFvsu6ni';s.crossOrigin='anonymous';s.referrerPolicy='no-referrer';document.head.appendChild(s)"></script>
 <script>
 "use strict";
-const APP_BUILD = "v2.14-fsclean";
+const APP_BUILD = "v2.15-serverspage";
 const $ = (s, r) => (r || document).querySelector(s);
 const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
 const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -2204,6 +2242,10 @@ return;
 bar.style.display = "flex";
 const curCloudIdx = String(activeMode || "").startsWith("cloud:") ? (+String(activeMode).slice(6) || 0) : -1;
 let h = '<span style="font-size:11.5px;color:var(--muted);font-weight:800;margin-right:2px">🖧 SERVERS:</span>';
+try {
+const _pk0 = String(pkey || "");
+if (/^tt\d+/i.test(_pk0.split(":")[0])) h += '<button type="button" class="srv-pill" data-srv-all="1" style="border-color:var(--acc2);color:var(--acc2)" title="Sabhi servers ek page par (EmbedWave style)">🖧 All Servers Page</button>';
+} catch (e) {}
 if (directList.length) {
 h += '<button type="button" class="srv-pill' + (activeMode === "direct" ? " on" : "") + '" data-srv-direct="1">🎬 Direct Player (' + directList.length + ')</button>';
 }
@@ -2239,6 +2281,15 @@ h += '<div id="cloudTrackBar" style="display:flex;align-items:center;gap:6px;mar
 '</div>';
 }
 bar.innerHTML = h;
+const allBtn = bar.querySelector("[data-srv-all]");
+if (allBtn) allBtn.onclick = () => {
+const _pk = String(opts.videoId || opts.metaId || "");
+const _parts = _pk.split(":");
+const _base = _parts[0];
+const _q = _parts.length >= 3 ? "?s=" + _parts[1] + "&e=" + _parts[2] : "";
+try { closePlayer(); } catch (e) {}
+goRoute("#/servers/" + (opts.type || "movie") + "/" + safeEnc(_base) + _q);
+};
 const dBtn = bar.querySelector("[data-srv-direct]");
 if (dBtn) dBtn.onclick = () => openPlayer(opts);
 bar.querySelectorAll("[data-srv-cloud]").forEach((b) => {
@@ -2786,7 +2837,16 @@ watchBtnHTML +
 seasonsHTML + trailerHTML + '<div id="moreLike"></div>';
 $("#listBtn").onclick = (e) => { const has = myList.toggle(m); e.target.textContent = has ? "✓ In My List" : "+ My List"; e.target.classList.toggle("btn-ghost", !has); };
 const ssb = $("#srvScrollBtn");
-if (ssb) ssb.onclick = () => { const sc = $("#streamSect"); if (sc) sc.scrollIntoView({ behavior: "smooth", block: "start" }); };
+if (ssb) ssb.onclick = () => {
+const canSrv = /^(tt\d+|\d{3,})$/i.test(String(m.id));
+if (canSrv) {
+const q = (type === "series" && primaryEp) ? "?s=" + primaryEp.season + "&e=" + primaryEp.episode : "";
+goRoute("#/servers/" + type + "/" + safeEnc(m.id) + q);
+return;
+}
+const sc = $("#streamSect");
+if (sc) sc.scrollIntoView({ behavior: "smooth", block: "start" });
+};
 const firstYtId = trailers.length ? trailers[0].yid : null;
 if ($("#watchBtn")) {
 $("#watchBtn").onclick = () => {
@@ -3253,6 +3313,170 @@ if (cbh) cbh.onclick = () => { try { localStorage.removeItem(DIRECT_HIST_KEY); }
 $$("#app [data-dl]").forEach((b) => { b.onclick = () => { const u = b.dataset.dl; const inp = $("#dlUrl"); if (inp) inp.value = u; directPlay(u, base ? true : false); }; });
 if (pre) setTimeout(() => { try { directPlay(pre, !!base); } catch (e) {} }, 80);
 }
+/* ================= All-Servers page (EmbedWave-style player + server grid) ================= */
+function svParse(label) {
+const s = String(label || "").trim().replace(/^Server\s+\d+\s*[•\u2022]\s*/, "");
+const m = s.match(/^(.*?)\s*\(([^)]*)\)\s*$/);
+return m ? { name: m[1].trim(), note: m[2].trim() } : { name: s, note: "" };
+}
+function svList(kind, base, s, e) {
+const vid = kind === "series" ? base + ":" + (s || 1) + ":" + (e || 1) : base;
+let startSec = 0;
+try { const p = progress.forItem(vid); startSec = (p && p.t) || 0; } catch (err) {}
+const tmdb = String(TMDB_CACHE[base] || "").replace(/\D/g, "");
+let list = [];
+try { list = buildCloudServers(kind, vid, startSec, tmdb) || []; } catch (err) { list = []; }
+return { list, vid };
+}
+async function viewServers(kind, id, my = S.routeSeq) {
+const app = $("#app");
+if (needBootWait(app)) return;
+if (my !== S.routeSeq) return;
+const qs = String(S.curHash || "").split("?")[1] || "";
+let qsS = 0, qsE = 0;
+try { const p = new URLSearchParams(qs); qsS = +p.get("s") || 0; qsE = +p.get("e") || 0; } catch (e) {}
+app.innerHTML = '<div class="wrap"><div class="skel" style="height:42px;width:34%;margin-top:24px"></div><div class="skel" style="height:18px;width:52%;margin-top:12px"></div><div class="skel" style="height:min(56vw,420px);margin-top:18px"></div></div>';
+let meta = null;
+try { const f = await fetchMeta(kind, id); meta = (f && f.meta) || null; } catch (e) {}
+if (my !== S.routeSeq) return;
+const title = (meta && meta.name) || String(id);
+const year = (meta && (meta.releaseInfo || String(meta.released || "").slice(0, 4))) || "";
+const rating = (meta && meta.imdbRating) || "";
+const genres = (meta && meta.genres) || [];
+const poster = meta ? posterOf(meta) : svgBackdrop(title, id);
+const backdrop = meta ? backdropOf(meta) : svgBackdrop(title, id);
+let seasonsMap = null, seasonNums = [], curS = qsS, curE = qsE;
+if (kind === "series") {
+if (S.epCache[id]) seasonsMap = S.epCache[id];
+else if (meta && meta.videos && meta.videos.length) {
+const sm = {};
+(meta.videos || []).forEach((v) => {
+if (!v) return;
+let s = v.season, e = v.episode;
+const parts = String(v.id || "").split(":");
+if ((!s || !e) && parts.length >= 3) { s = +parts[1]; e = +parts[2]; }
+if (!s) s = 1;
+if (!e) return;
+(sm[s] = sm[s] || []).push(Object.assign({}, v, { season: s, episode: e }));
+});
+Object.values(sm).forEach((arr) => arr.sort((a, b) => a.episode - b.episode));
+if (Object.keys(sm).length) { seasonsMap = sm; S.epCache[id] = sm; }
+}
+if (seasonsMap) {
+seasonNums = Object.keys(seasonsMap).map(Number).sort((a, b) => a - b);
+let pv = null;
+try { pv = progress.forItem(id); } catch (e) {}
+if (!curS && pv && pv.vid) { const sp = String(pv.vid).split(":"); if (sp.length >= 3) { curS = +sp[1]; curE = +sp[2]; } }
+if (!curS || seasonNums.indexOf(curS) === -1) curS = seasonNums[0] || 1;
+const eps = seasonsMap[curS] || [];
+if (!curE || !eps.some((x) => +x.episode === +curE)) curE = (eps[0] && eps[0].episode) || 1;
+}
+}
+const got = svList(kind, id, curS, curE);
+const list = got.list;
+const vid = got.vid;
+if (!list.length) {
+app.innerHTML = '<div class="wrap"><div class="empty"><div class="big">🛰️</div><h3>Is title ke liye mirror nahi mile</h3><p>IMDb/TMDB id chahiye (jaise <code>tt0111161</code>). Meta addon se id resolve nahi hui.</p><a class="btn btn-primary" href="#/home" data-route="#/home">🏠 Home</a></div></div>';
+return;
+}
+const epsList = (seasonsMap && seasonsMap[curS]) || [];
+const epObj = epsList.find((x) => +x.episode === +curE) || null;
+const epName = epObj ? (epObj.title || ("Episode " + curE)) : "";
+const picks = store.get("se_srv_pick", {}) || {};
+const wantId = picks[kind + ":" + id];
+let curIdx = 0;
+const foundIdx = list.findIndex((x) => x.id === wantId);
+if (foundIdx > 0) curIdx = foundIdx;
+const srv = list[curIdx];
+const sp0 = svParse(srv.name || srv.label);
+const pageTitle = title + (kind === "series" ? " — S" + curS + ":E" + curE : "");
+const epSelectors = (seasonNums.length > 1 || epsList.length > 1) ?
+'<div class="svp-eps"><label>Season <select id="svSeason">' + seasonNums.map((sn) => '<option value="' + sn + '"' + (+sn === +curS ? " selected" : "") + ">S" + sn + "</option>").join("") + "</select></label>" +
+'<label>Episode <select id="svEp">' + epsList.map((ep) => '<option value="' + ep.episode + '"' + (+ep.episode === +curE ? " selected" : "") + ">E" + ep.episode + (ep.title ? " — " + esc(String(ep.title).slice(0, 34)) : "") + "</option>").join("") + "</select></label></div>" : "";
+app.innerHTML = '<div class="wrap svp">' +
+'<div class="svp-head">' +
+'<button type="button" class="svp-back" id="svBack" title="Wapas">←</button>' +
+'<img class="svp-poster" src="' + esc(poster) + '" alt="" loading="lazy" onerror="this.style.display=\'none\'">' +
+'<div class="svp-titlebox"><h1 class="svp-title">' + esc(title) + "</h1>" +
+'<div class="svp-sub">' + (kind === "series" ? "SERIES" : "MOVIE") + (year ? " • " + esc(String(year)) : "") + (rating ? ' • <span style="color:var(--gold)">★ ' + esc(String(rating)) + "</span>" : "") + (epName ? " • S" + curS + ":E" + curE + " — " + esc(epName) : "") + "</div></div>" +
+epSelectors +
+'</div>' +
+'<div class="svp-stage" id="svStage">' +
+'<iframe id="svIframe" src="' + esc(srv.url) + '"' + sandboxAttr() + ' referrerpolicy="no-referrer" allow="autoplay; encrypted-media; fullscreen; picture-in-picture" allowfullscreen title="' + esc(pageTitle) + '"></iframe>' +
+'<div class="svp-badge" id="svBadge"><b>Server ' + (curIdx + 1) + "</b> • " + esc(sp0.name) + " • " + esc(srv.q || "HD") + "</div>" +
+'<div class="svp-stagebtns"><button type="button" id="svFs" title="Fullscreen (F)">⛶</button><button type="button" id="svNewTab" title="Naya tab">↗</button><button type="button" id="svSandbox" title="Sandbox mode">🧼</button></div>' +
+"</div>" +
+'<div class="svp-actions">' +
+'<button type="button" class="btn btn-sm btn-ghost" id="svTheater">🖥️ Theater mode</button>' +
+'<button type="button" class="btn btn-sm btn-ghost" id="svCopy">🔗 Link copy</button>' +
+'<button type="button" class="btn btn-sm btn-ghost" id="svAuto">⚡ Auto (best server)</button>' +
+'<span class="svp-hint">Server blank/ads? Neeche se dusra server dabao — ya 🧼 sandbox mode badlo.</span>' +
+"</div>" +
+'<h2 class="row-title" style="margin-top:22px">All Servers <span class="row-sub">' + list.length + " • sab ek jagah</span></h2>" +
+'<div class="svp-grid" id="svGrid">' + list.map((s, i) => {
+const p = svParse(s.name || s.label);
+const bad = (function () { try { return isPenalized(s.id); } catch (e) { return false; } })();
+return '<button type="button" class="svp-card' + (i === curIdx ? " on" : "") + '" data-sv="' + i + '">' +
+'<span class="svp-num">' + (i + 1) + "</span>" +
+'<span class="svp-info"><b>' + esc(p.name) + "</b><small>" + esc(p.note || (String(s.url).indexOf("tmdb") > -1 ? "TMDB" : "IMDb")) + "</small></span>" +
+'<span class="svp-q">' + esc(s.q || "HD") + "</span>" +
+(bad ? '<span class="svp-dot warn" title="Recently fail hua tha">⚠️</span>' : '<span class="svp-dot ok" title="Ready"></span>') +
+"</button>";
+}).join("") + "</div>" +
+'<div class="svp-foot">Tip: server switch karne par app aapki choice yaad rakhta hai. Ads block karne ke liye <b>🧼 Sandbox: ' + SANDBOX_MODES[sandboxMode()].label + "</b> chalu rakho.</div>" +
+"</div>";
+const ifr = $("#svIframe");
+let lastSwitch = { id: srv.id, at: Date.now() };
+const loadSrv = (i, opts2) => {
+const s = list[i];
+if (!s) return;
+if (!(opts2 && opts2.force) && lastSwitch && lastSwitch.id !== s.id && (Date.now() - lastSwitch.at) < 15000) { try { penalizeServer(lastSwitch.id); } catch (e) {} }
+lastSwitch = { id: s.id, at: Date.now() };
+curIdx = i;
+if (ifr) ifr.src = s.url;
+const p = svParse(s.name || s.label);
+const badge = $("#svBadge");
+if (badge) badge.innerHTML = "<b>Server " + (i + 1) + "</b> • " + esc(p.name) + " • " + esc(s.q || "HD");
+$$("#svGrid .svp-card").forEach((c, ci) => c.classList.toggle("on", ci === i));
+try { const m2 = store.get("se_srv_pick", {}) || {}; m2[kind + ":" + id] = s.id; store.set("se_srv_pick", m2); } catch (e) {}
+};
+$$("#svGrid .svp-card").forEach((c) => { c.onclick = () => loadSrv(+c.dataset.sv); });
+const bk = $("#svBack");
+if (bk) bk.onclick = () => { if (history.length > 1) history.back(); else goRoute("#/detail/" + kind + "/" + safeEnc(id)); };
+const addBtn = (sel, fn) => { const b = $(sel); if (b) b.onclick = fn; };
+addBtn("#svFs", () => svToggleFs());
+addBtn("#svNewTab", () => openExternalTab(list[curIdx].url));
+addBtn("#svCopy", () => { try { navigator.clipboard.writeText(list[curIdx].url); toast("📋 Server link copy ho gaya"); } catch (e) { toast(list[curIdx].url, true); } });
+addBtn("#svTheater", () => { try { openFrame(list[curIdx].url); } catch (e) { toast("Theater mode fail", true); } });
+addBtn("#svAuto", () => { loadSrv(0); toast("⚡ Best server: " + svParse(list[0].name || list[0].label).name); });
+addBtn("#svSandbox", () => {
+const order = ["compat", "shield", "off"];
+const next = order[(order.indexOf(sandboxMode()) + 1) % order.length];
+setSandboxMode(next);
+if (ifr) { ifr.setAttribute("sandbox", SANDBOX_MODES[next].attr.replace(/^ sandbox="/, "").replace(/"$/, "")); if (next === "off") ifr.removeAttribute("sandbox"); }
+toast((next === "off" ? "🔓" : next === "shield" ? "🛡️" : "⚖️") + " Sandbox: " + SANDBOX_MODES[next].label);
+});
+const sSel = $("#svSeason"), eSel = $("#svEp");
+const jump = () => {
+const ns = sSel ? +sSel.value : curS;
+const ne = eSel ? +eSel.value : curE;
+goRoute("#/servers/" + kind + "/" + safeEnc(id) + "?s=" + ns + "&e=" + ne);
+};
+if (sSel) sSel.onchange = jump;
+if (eSel) eSel.onchange = jump;
+}
+function svToggleFs() {
+const st = $("#svStage");
+if (!st) return;
+if (fsActive()) { exitFullscreenAll(); return; }
+try { allowIntentionalNav(); } catch (e) {}
+const fn = st.requestFullscreen || st.webkitRequestFullscreen || st.mozRequestFullScreen || st.msRequestFullscreen;
+if (fn) {
+try { const pr = fn.call(st); if (pr && pr.catch) pr.catch(() => { st.classList.add("sv-fs"); document.body.style.overflow = "hidden"; }); }
+catch (e) { st.classList.add("sv-fs"); document.body.style.overflow = "hidden"; }
+} else { st.classList.add("sv-fs"); document.body.style.overflow = "hidden"; }
+}
+
 function viewAddons() {
 const app = $("#app");
 const urls = store.get("se_addons", DEFAULT_ADDON_URLS);
@@ -5750,6 +5974,7 @@ else if (name === "list") viewList();
 else if (name === "lab") viewLab();
 else if (name === "addons") viewAddons();
 else if (name === "direct") viewDirect(my);
+else if (name === "servers") viewServers(seg[1] || "movie", seg.slice(2).join("/"), my);
 else if (name === "sync") viewSync();
 else viewHome(my);
 const routeT1 = (typeof performance !== "undefined" && performance.now) ? performance.now() : Date.now();
