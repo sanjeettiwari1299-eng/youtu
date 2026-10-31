@@ -498,7 +498,7 @@ footer b{color:var(--txt)}
 <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.17/dist/hls.min.js" integrity="sha384-9v3HcdYrO3D+OPDTjZ40RXocgE4GtXVCd3/mCS62JsM93JXgI1afJVuwjFvsu6ni" crossorigin="anonymous" referrerpolicy="no-referrer" onerror="var s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.17/hls.min.js';s.integrity='sha384-9v3HcdYrO3D+OPDTjZ40RXocgE4GtXVCd3/mCS62JsM93JXgI1afJVuwjFvsu6ni';s.crossOrigin='anonymous';s.referrerPolicy='no-referrer';document.head.appendChild(s)"></script>
 <script>
 "use strict";
-const APP_BUILD = "v2.4-fs";
+const APP_BUILD = "v2.5-adshield";
 const $ = (s, r) => (r || document).querySelector(s);
 const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
 const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -656,6 +656,7 @@ document.addEventListener("click", (e) => {
 if (!isAdShieldOn()) return;
 const a = e.target && e.target.closest && e.target.closest("a[href]");
 if (!a) return;
+if (a.getAttribute("data-se-allow") === "1" || (a.dataset && a.dataset.seAllow === "1")) return;
 const href = a.getAttribute("href") || "";
 if (isAdTrackerUrl(href) || (a.target === "_blank" && typeof S !== "undefined" && S.current && S.current.frame && !/^(vlc|intent):/i.test(href))) {
 e.preventDefault();
@@ -1936,6 +1937,26 @@ const ok = enterFullscreenEl(el);
 if (ok) setTimeout(fsLockLandscape, 350);
 else if (!iframeMode && vid && vid.webkitEnterFullscreen) { try { vid.webkitEnterFullscreen(); return; } catch (e) {} }
 }
+function openExternalTab(u) {
+try {
+const a = document.createElement("a");
+a.href = String(u);
+a.target = "_blank";
+a.rel = "noopener noreferrer";
+a.setAttribute("data-se-allow", "1");
+document.body.appendChild(a);
+a.click();
+a.remove();
+} catch (e) {
+try { window.open(u, "_blank", "noopener,noreferrer"); } catch (e2) {}
+}
+}
+function cloudSandboxOn() { try { return store.get("se_sandbox", true) !== false; } catch (e) { return true; } }
+function sandboxAttr() {
+if (!cloudSandboxOn()) return "";
+// allow-popups / allow-top-navigation JAAN-BUJH kar nahi diye → redirect & popup ads block
+return ' sandbox="allow-scripts allow-same-origin allow-forms allow-presentation allow-downloads"';
+}
 function preferredCloud(list, type, vid) {
 try {
 const map = store.get("se_last_srv", {}) || {};
@@ -1962,25 +1983,27 @@ const t = Math.max(0, Math.floor(startSec || 0));
 const vlParams = "?primaryColor=00ff9d&secondaryColor=00e5ff&autoplay=true" + (t > 15 ? "&startAt=" + t : "");
 if (isSeries) {
 return _ordered([
-{ id: "vidsrc_sh", name: "⚡ Server 1 • VidSrc SH (Fastest HD)", q: "1080p", url: "https://vidsrc.sh/embed/tv/" + imdb + "/" + s + "/" + e },
-{ id: "vidsrc_pm", name: "🟢 Server 2 • VidSrc PM (ISP-Unblocked)", q: "1080p", url: "https://vidsrc.pm/embed/tv/" + imdb + "/" + s + "/" + e },
-{ id: "autoembed", name: "🚀 Server 3 • AutoEmbed Pro (Multi-Audio)", q: "1080p", url: "https://autoembed.co/tv/imdb/" + imdb + "-" + s + "-" + e },
-{ id: "nontongo", name: "🔥 Server 4 • NontonGo VIP (Fast FHD)", q: "FHD", url: "https://nontongo.win/embed/tv/" + imdb + "/" + s + "/" + e },
-{ id: "twoembed", name: "💎 Server 5 • 2Embed Cloud (Global)", q: "HD", url: "https://www.2embed.cc/embedtv/" + imdb + "&s=" + s + "&e=" + e },
-{ id: "vidfast", name: "🚀 Server 6 • VidFast Pro (4K + Multi-Audio)", q: "4K", url: "https://vidfast.pro/tv/" + imdb + "/" + s + "/" + e },
-{ id: "vidsrc_to", name: "🎯 Server 7 • VidSrc TO (Fast Multi-Q)", q: "1080p", url: "https://vidsrc.to/embed/tv/" + imdb + "/" + s + "/" + e },
-{ id: "vidsrc_me", name: "🌐 Server 8 • VidSrc ME (Auto-Mirror)", q: "1080p", url: "https://vidsrc.me/embed/tv/" + imdb + "/" + s + "/" + e }
+{ id: "vidfast", name: "🧼 Server 1 • VidFast Pro (4K • Clean)", q: "4K", url: "https://vidfast.pro/tv/" + imdb + "/" + s + "/" + e },
+{ id: "vidlink", name: "🧼 Server 2 • VidLink Pro (Clean • Auto-Resume)", q: "1080p", url: "https://vidlink.pro/tv/" + imdb + "/" + s + "/" + e + vlParams },
+{ id: "vidsrc_sh", name: "⚡ Server 3 • VidSrc SH (Fastest HD)", q: "1080p", url: "https://vidsrc.sh/embed/tv/" + imdb + "/" + s + "/" + e },
+{ id: "vidsrc_to", name: "🎯 Server 4 • VidSrc TO (Multi-Q)", q: "1080p", url: "https://vidsrc.to/embed/tv/" + imdb + "/" + s + "/" + e },
+{ id: "vidsrc_pm", name: "🟢 Server 5 • VidSrc PM (ISP-Unblocked)", q: "1080p", url: "https://vidsrc.pm/embed/tv/" + imdb + "/" + s + "/" + e },
+{ id: "nontongo", name: "🔥 Server 6 • NontonGo VIP (Fast FHD)", q: "FHD", url: "https://nontongo.win/embed/tv/" + imdb + "/" + s + "/" + e },
+{ id: "autoembed", name: "🚀 Server 7 • AutoEmbed Pro (Multi-Audio)", q: "1080p", url: "https://autoembed.co/tv/imdb/" + imdb + "-" + s + "-" + e },
+{ id: "twoembed", name: "💎 Server 8 • 2Embed Cloud (Global)", q: "HD", url: "https://www.2embed.cc/embedtv/" + imdb + "&s=" + s + "&e=" + e },
+{ id: "vidsrc_me", name: "🌐 Server 9 • VidSrc ME (Auto-Mirror)", q: "1080p", url: "https://vidsrc.me/embed/tv/" + imdb + "/" + s + "/" + e }
  ]);
 }
 return _ordered([
-{ id: "vidsrc_sh", name: "⚡ Server 1 • VidSrc SH (Fastest HD)", q: "1080p", url: "https://vidsrc.sh/embed/movie/" + imdb },
-{ id: "vidsrc_pm", name: "🟢 Server 2 • VidSrc PM (ISP-Unblocked)", q: "1080p", url: "https://vidsrc.pm/embed/movie/" + imdb },
-{ id: "autoembed", name: "🚀 Server 3 • AutoEmbed Pro (Multi-Audio)", q: "1080p", url: "https://autoembed.co/movie/imdb/" + imdb },
-{ id: "nontongo", name: "🔥 Server 4 • NontonGo VIP (Fast FHD)", q: "FHD", url: "https://nontongo.win/embed/movie/" + imdb },
-{ id: "twoembed", name: "💎 Server 5 • 2Embed Cloud (Global)", q: "HD", url: "https://www.2embed.cc/embed/" + imdb },
-{ id: "vidfast", name: "🚀 Server 6 • VidFast Pro (4K + Multi-Audio)", q: "4K", url: "https://vidfast.pro/movie/" + imdb },
-{ id: "vidsrc_to", name: "🎯 Server 7 • VidSrc TO (Fast Multi-Q)", q: "1080p", url: "https://vidsrc.to/embed/movie/" + imdb },
-{ id: "vidlink", name: "🌐 Server 8 • VidLink Pro (Auto-Resume)", q: "1080p", url: "https://vidlink.pro/movie/" + imdb + vlParams }
+{ id: "vidfast", name: "🧼 Server 1 • VidFast Pro (4K • Clean)", q: "4K", url: "https://vidfast.pro/movie/" + imdb },
+{ id: "vidlink", name: "🧼 Server 2 • VidLink Pro (Clean • Auto-Resume)", q: "1080p", url: "https://vidlink.pro/movie/" + imdb + vlParams },
+{ id: "vidsrc_sh", name: "⚡ Server 3 • VidSrc SH (Fastest HD)", q: "1080p", url: "https://vidsrc.sh/embed/movie/" + imdb },
+{ id: "vidsrc_to", name: "🎯 Server 4 • VidSrc TO (Multi-Q)", q: "1080p", url: "https://vidsrc.to/embed/movie/" + imdb },
+{ id: "vidsrc_pm", name: "🟢 Server 5 • VidSrc PM (ISP-Unblocked)", q: "1080p", url: "https://vidsrc.pm/embed/movie/" + imdb },
+{ id: "nontongo", name: "🔥 Server 6 • NontonGo VIP (Fast FHD)", q: "FHD", url: "https://nontongo.win/embed/movie/" + imdb },
+{ id: "autoembed", name: "🚀 Server 7 • AutoEmbed Pro (Multi-Audio)", q: "1080p", url: "https://autoembed.co/movie/imdb/" + imdb },
+{ id: "twoembed", name: "💎 Server 8 • 2Embed Cloud (Global)", q: "HD", url: "https://www.2embed.cc/embed/" + imdb },
+{ id: "vidsrc_me", name: "🌐 Server 9 • VidSrc ME (Auto-Mirror)", q: "1080p", url: "https://vidsrc.me/embed/movie/" + imdb }
 ]);
 }
 function renderPlayerServerBar(opts, activeMode, trackerUI) {
@@ -2022,6 +2045,8 @@ h += '<div id="cloudTrackBar" style="display:flex;align-items:center;gap:6px;mar
 '<button type="button" class="srv-pill" id="cloudFxBtn" style="padding:2px 8px;font-size:11px" title="Apply Cyber Video FX Filters on Cloud Player">🎨 FX</button>' +
 '<button type="button" class="srv-pill" id="cloudZoomBtn" style="padding:2px 8px;font-size:11px" title="Cinema Zoom / Crop Black Bars">⛶ Zoom</button>' +
 '<button type="button" class="srv-pill" id="cloudFsBtn" style="padding:2px 8px;font-size:11px;border-color:var(--acc2);color:var(--acc2)" title="Fullscreen (F) — cloud server ke liye">🖥️ Fullscreen</button>' +
+'<button type="button" class="srv-pill" id="cloudSandboxBtn" style="padding:2px 8px;font-size:11px;border-color:var(--green);color:var(--green)" title="Sandbox Shield: iframe ko popup + top-redirect se rokta hai. Kisi server par video blank lage to ise OFF karo.">🧼 Sandbox: ' + (cloudSandboxOn() ? "ON" : "OFF") + '</button>' +
+'<button type="button" class="srv-pill" id="cloudNewTab" style="padding:2px 8px;font-size:11px" title="Server ko naye tab me kholo (isolated, noopener)">↗ New Tab</button>' +
 '<span id="cloudTimeBadge" style="color:var(--acc);font-weight:800;font-family:monospace">⚡ RAM 0:00</span>' +
 '<input id="cloudScrub" type="range" min="0" max="100" value="0" title="Drag to sync your current watch position" style="width:82px;accent-color:var(--acc);cursor:pointer">' +
 '<button type="button" class="srv-pill" id="cloudMinus5" style="padding:2px 7px;font-size:11px" title="-5 min">-5m</button>' +
@@ -2084,7 +2109,7 @@ toast("⏯ Watch Progress Resume: " + fmtTime(watchedSec) + " se record ho raha 
 }
 $("#playerTitle").textContent = "▶ " + opts.title + " • [" + srv.name + "]";
 let adShield = store.get("se_adshield", true) !== false;
-stage.innerHTML = '<iframe id="cloudIframe" src="' + esc(srv.url) + '" referrerpolicy="no-referrer" allow="autoplay; encrypted-media; fullscreen; picture-in-picture" allowfullscreen style="width:100%;height:100%;border:0;background:#000;transition:transform .2s,filter .2s"></iframe>';
+stage.innerHTML = '<iframe id="cloudIframe" src="' + esc(srv.url) + '"' + sandboxAttr() + ' referrerpolicy="no-referrer" allow="autoplay; encrypted-media; fullscreen; picture-in-picture" allowfullscreen style="width:100%;height:100%;border:0;background:#000;transition:transform .2s,filter .2s"></iframe>';
 const _ifr0 = $("#cloudIframe");
 if (_ifr0) {
 let _hops = 0;
@@ -2206,6 +2231,15 @@ toast("📐 Cloud Zoom: " + CLOUD_ZOOM[cZoomIdx].name);
 }
 const cfsBtn = $("#cloudFsBtn");
 if (cfsBtn) cfsBtn.onclick = () => toggleFsSmart();
+const sbxBtn = $("#cloudSandboxBtn");
+if (sbxBtn) sbxBtn.onclick = () => {
+const wasOn = cloudSandboxOn();
+store.set("se_sandbox", !wasOn);
+toast(!wasOn ? "🧼 Sandbox Shield ON — popup + redirect ads blocked" : "⚠️ Sandbox Shield OFF — agar video blank tha to ab chalega, par ads bhi aa sakte hain");
+openCloudServer(S.current || opts, cloudIdx || 0);
+};
+const ntBtn = $("#cloudNewTab");
+if (ntBtn) ntBtn.onclick = () => openExternalTab(srv.url);
 const sc = $("#cloudScrub");
 if (sc) {
 sc.oninput = () => {
@@ -4029,7 +4063,7 @@ try { const old = stage.querySelector("video"); if (old) old.pause(); } catch (e
 player.hidden = false;
 document.body.style.overflow = player.classList.contains("mini-mode") ? "" : "hidden";
 $("#playerTitle").textContent = "🌐 Site player";
-stage.innerHTML = '<iframe src="' + esc(url) + '" allow="autoplay; encrypted-media; fullscreen" allowfullscreen></iframe>';
+stage.innerHTML = '<iframe src="' + esc(url) + '"' + sandboxAttr() + ' referrerpolicy="no-referrer" allow="autoplay; encrypted-media; fullscreen" allowfullscreen></iframe>';
 bar.innerHTML = '<a class="btn btn-sm btn-ghost" href="' + esc(url) + '" target="_blank" rel="noopener">↗ Naye tab me kholo</a><span class="player-hint">Site ka apna player — blank aaye to host ne mana kiya</span>';
 }
 function openYT(yid, title, extra) {
