@@ -4,7 +4,7 @@
      - static: stale-while-revalidate
      - version.json & sw.js: always network
      - cross-origin (TMDB, mirrors, HLS CDNs, proxies): untouched */
-const VER = "se-v11-1";
+const VER = "se-v16-1";
 const SHELL = ["./", "./index.html", "./manifest.json", "./icon.svg"];
 
 self.addEventListener("install", (e) => {
