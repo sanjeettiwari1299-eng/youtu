@@ -498,7 +498,7 @@ footer b{color:var(--txt)}
 <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.17/dist/hls.min.js" integrity="sha384-9v3HcdYrO3D+OPDTjZ40RXocgE4GtXVCd3/mCS62JsM93JXgI1afJVuwjFvsu6ni" crossorigin="anonymous" referrerpolicy="no-referrer" onerror="var s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.17/hls.min.js';s.integrity='sha384-9v3HcdYrO3D+OPDTjZ40RXocgE4GtXVCd3/mCS62JsM93JXgI1afJVuwjFvsu6ni';s.crossOrigin='anonymous';s.referrerPolicy='no-referrer';document.head.appendChild(s)"></script>
 <script>
 "use strict";
-const APP_BUILD = "v2.6-mirrors";
+const APP_BUILD = "v2.7-serverrank";
 const $ = (s, r) => (r || document).querySelector(s);
 const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
 const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -1961,6 +1961,21 @@ if (!cloudSandboxOn()) return "";
 // allow-popups / allow-top-navigation JAAN-BUJH kar nahi diye → redirect & popup ads block
 return ' sandbox="allow-scripts allow-same-origin allow-forms allow-presentation allow-downloads"';
 }
+function penalizeServer(id) {
+try {
+if (!id) return;
+const m = store.get("se_srv_penalty", {}) || {};
+m[id] = Date.now();
+store.set("se_srv_penalty", m);
+} catch (e) {}
+}
+function isPenalized(id) {
+try {
+const m = store.get("se_srv_penalty", {}) || {};
+const at = m[id];
+return !!(at && (Date.now() - at) < 24 * 3600 * 1000);
+} catch (e) { return false; }
+}
 function preferredCloud(list, type, vid) {
 try {
 const map = store.get("se_last_srv", {}) || {};
@@ -1990,12 +2005,10 @@ const push = (id, label, q, url) => { if (url) list.push({ id: id, label: label,
 // ===== TIER 1: TMDB-based "clean" mirrors (sabse kam ads) =====
 if (tmdb) {
 if (isSeries) {
-push("vixsrc", "🧼 VixSrc (Cleanest • Multi-Sub)", "1080p", "https://vixsrc.to/tv/" + tmdb + "/" + s + "/" + e);
 push("embedwave", "🧼 EmbedWave (No-Ads Shell)", "1080p", "https://embedwave.cc/embed/tv/" + tmdb + "/" + s + "/" + e);
 push("vidnest", "🧼 VidNest (12 Sources • Auto-Next)", "1080p", "https://vidnest.fun/tv/" + tmdb + "/" + s + "/" + e);
 push("vidlink", "🧼 VidLink Pro (Hindi Subs)", "1080p", "https://vidlink.pro/tv/" + tmdb + "/" + s + "/" + e + vlParams);
 } else {
-push("vixsrc", "🧼 VixSrc (Cleanest • Multi-Sub)", "1080p", "https://vixsrc.to/movie/" + tmdb);
 push("embedwave", "🧼 EmbedWave (No-Ads Shell)", "1080p", "https://embedwave.cc/embed/movie/" + tmdb);
 push("vidnest", "🧼 VidNest (12 Sources)", "1080p", "https://vidnest.fun/movie/" + tmdb);
 push("vidlink", "🧼 VidLink Pro (Hindi Subs)", "1080p", "https://vidlink.pro/movie/" + imdb + vlParams);
@@ -2011,8 +2024,12 @@ push("vidsrc_pm", "🟢 VidSrc PM (ISP-Unblocked)", "1080p", isSeries ? "https:/
 push("nontongo", "🔥 NontonGo VIP (Fast FHD)", "FHD", isSeries ? "https://nontongo.win/embed/tv/" + imdb + "/" + s + "/" + e : "https://nontongo.win/embed/movie/" + imdb);
 push("autoembed", "🚀 AutoEmbed Pro (Multi-Audio)", "1080p", isSeries ? "https://autoembed.co/tv/imdb/" + imdb + "-" + s + "-" + e : "https://autoembed.co/movie/imdb/" + imdb);
 push("twoembed", "💎 2Embed Cloud (Global)", "HD", isSeries ? "https://www.2embed.cc/embedtv/" + imdb + "&s=" + s + "&e=" + e : "https://www.2embed.cc/embed/" + imdb);
+if (tmdb) push("vixsrc", "⚠️ VixSrc (Bot-check aa sakta hai • backup)", "1080p", isSeries ? "https://vixsrc.to/tv/" + tmdb + "/" + s + "/" + e : "https://vixsrc.to/movie/" + tmdb);
 // ===== order (last-worked first) + renumber so "Server N" matches position =====
-return preferredCloud(list, type, vid).map((x, i) => ({ id: x.id, name: "Server " + (i + 1) + " • " + x.label, q: x.q, url: x.url }));
+const _ordered = preferredCloud(list, type, vid);
+const _scored = _ordered.map((x) => ({ x: x, p: isPenalized(x.id) ? 1 : 0 }));
+_scored.sort((a, b) => a.p - b.p);
+return _scored.map((o, i) => ({ id: o.x.id, name: "Server " + (i + 1) + " • " + o.x.label, q: o.x.q, url: o.x.url }));
 }
 function renderPlayerServerBar(opts, activeMode, trackerUI) {
 const bar = $("#playerBar");
@@ -2098,6 +2115,10 @@ const cloudList = buildCloudServers(opts.type || "movie", pkey, watchedSec, opts
 opts.cloudServers = cloudList;
 const srv = cloudList[cloudIdx || 0];
 if (!srv) { toast("Cloud server available nahi hai", true); return; }
+try {
+const _prev = S.current || {};
+if (_prev.frame && _prev.srvId && _prev.srvId !== srv.id && _prev.srvAt && (Date.now() - _prev.srvAt) < 15000) penalizeServer(_prev.srvId);
+} catch (e) {}
 try { const _lm = store.get("se_last_srv", {}) || {}; _lm[String(opts.type || "movie") + ":" + String(pkey).split(":")[0]] = srv.id; store.set("se_last_srv", _lm); } catch (e) {}
 const player = $("#player"), stage = $("#playerStage");
 if (NP.cleanup) { try { NP.cleanup(); } catch (e) {} NP.cleanup = null; }
@@ -2107,7 +2128,7 @@ try { const old = stage.querySelector("video"); if (old) old.pause(); } catch (e
 player.hidden = false;
 player.classList.remove("np-idle");
 document.body.style.overflow = player.classList.contains("mini-mode") ? "" : "hidden";
-S.current = Object.assign({}, opts, { frame: true });
+S.current = Object.assign({}, opts, { frame: true, srvId: srv.id, srvAt: Date.now() });
 S.currentSrc = srv.url;
 try {
 history.add({ id: isEp ? sid : pkey, type: opts.type || "movie", name: isEp ? (opts.metaName || opts.title) : opts.title, genres: opts.genres || [], poster: opts.poster || "", backdrop: opts.backdrop || "" });
