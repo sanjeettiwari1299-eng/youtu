@@ -1,13 +1,13 @@
 {
-  "name": "StreamEo — Cyber Cinema",
+  "name": "StreamEo — Your Personal Cinema",
   "short_name": "StreamEo",
   "description": "Movies, series, anime, live TV aur regional content — fast, free, no login.",
   "start_url": "./#/home",
   "scope": "./",
   "display": "standalone",
   "orientation": "any",
-  "background_color": "#080a11",
-  "theme_color": "#e50914",
+  "background_color": "#101016",
+  "theme_color": "#101016",
   "categories": ["entertainment", "video"],
   "icons": [
     { "src": "./icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
