@@ -4,8 +4,8 @@
      - static: stale-while-revalidate
      - version.json & sw.js: always network
      - cross-origin (TMDB, mirrors, HLS CDNs, proxies): untouched */
-const VER = "se-v17-1";
-const SHELL = ["./", "./index.html", "./manifest.json", "./icon.svg"];
+const VER = "se-v30-cinema";
+const SHELL = ["./", "./index.html", "./manifest.json", "./icon.svg", "./cinema.css", "./cinema.js", "./assets/dune-backdrop.jpg"];
 
 self.addEventListener("install", (e) => {
   e.waitUntil(

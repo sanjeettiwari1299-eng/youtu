@@ -1,0 +1,14 @@
+{
+  "name": "streameo",
+  "version": "3.0.0",
+  "private": true,
+  "description": "StreamEo static cinema frontend",
+  "scripts": {
+    "dev": "python3 -m http.server 3000 --bind 0.0.0.0",
+    "test": "playwright test",
+    "test:syntax": "node tests/check-syntax.cjs"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.58.0"
+  }
+}

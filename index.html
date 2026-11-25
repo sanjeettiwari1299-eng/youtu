@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>StreamEo — Apni Free Streaming</title>
+<title>StreamEo — Your Personal Cinema</title>
 <meta name="description" content="StreamEo - apni khud ki Stremio-type streaming website. Addons lagao, movies & series dekho.">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self' https: data: blob:; script-src 'self' 'unsafe-inline' blob: https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; worker-src 'self' blob:; child-src 'self' blob: https:; style-src 'self' 'unsafe-inline'; font-src 'self' data: https:; manifest-src 'self' data:; img-src 'self' https: http: data: blob:; media-src 'self' https: http: blob: data:; connect-src 'self' https: http: wss:; frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com https://vidsrc.sh https://vidsrc.pm https://autoembed.co https://www.nontongo.win https://www.2embed.cc https://vidlink.pro https://vidsrc.me https:; object-src 'none'; base-uri 'self'; form-action 'self'">
 <meta http-equiv="X-Content-Type-Options" content="nosniff">
@@ -21,8 +21,7 @@
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="manifest" href="./manifest.json">
 <link rel="icon" type="image/svg+xml" href="./icon.svg">
-<meta name="theme-color" content="#0b0e17">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='18' fill='%23000'/><text x='50' y='74' font-size='66' font-family='Arial' font-weight='900' fill='%23E50914' text-anchor='middle'>S</text></svg>">
+<meta name="theme-color" content="#101016">
 <style>
 :root{--bg:#0b0e17;--bg2:#11162a;--panel:#161c33;--panel2:#1d2440;--line:rgba(255,255,255,.09);--txt:#eef1f9;--muted:#9aa3bd;--acc:#8b5cf6;--acc2:#22d3ee;--gold:#fbbf24;--green:#34d399;--red:#f87171;--r:14px;--shadow:0 10px 40px rgba(0,0,0,.5)}
 *{box-sizing:border-box;margin:0;padding:0}
@@ -605,11 +604,14 @@ padding:13px 20px;border-radius:999px;box-shadow:0 10px 30px rgba(229,9,20,.45);
 .srv-item .t b{font-size:12.2px}
 }
 </style>
+<link rel="stylesheet" href="./cinema.css">
 </head>
-<body data-theme="netflix">
+<body data-theme="stremio">
+<a class="skip-link" href="#app">Skip to content</a>
+<aside id="sidebar" aria-label="StreamEo navigation"></aside>
 
 <header id="topbar">
-  <a class="logo" href="#/home" data-route="#/home">Stream<span>Eo</span></a>
+  <a class="logo" href="#/home" data-route="#/home">Stream<span>Eo</span></a><div id="pageContext">Discover <span>Your next favorite is here.</span></div>
   <nav id="mainnav" aria-label="Main Navigation">
     <a href="#/home" data-nav="home" data-route="#/home">Home</a>
     <a href="#/movies" data-nav="movies" data-route="#/movies">Movies</a>
@@ -622,7 +624,7 @@ padding:13px 20px;border-radius:999px;box-shadow:0 10px 30px rgba(229,9,20,.45);
   <div class="top-right">
     <div class="search-wrap" id="searchWrap">
       <form id="searchForm" autocomplete="off">
-        <input id="searchInput" placeholder="Search titles, people, genres..." aria-label="Search">
+        <input id="searchInput" placeholder="Search movies, series, and more..." aria-label="Search">
         <button type="button" id="voiceSearchBtn" title="Voice Search (Bolo aur khojo)">🎤</button>
         <button type="submit" title="Search">🔍</button>
       </form>
@@ -630,9 +632,9 @@ padding:13px 20px;border-radius:999px;box-shadow:0 10px 30px rgba(229,9,20,.45);
     </div>
   </div>
 </header>
-<div id="offlineBar" hidden>⚠️ Addon servers se connect nahi ho pa raha — offline mode. Internet check karke refresh karo.</div>
+<div id="offlineBar" hidden>Some add-ons are unavailable. Browse cached titles, or play a local video.</div>
 
-<main id="app"></main>
+<main id="app" tabindex="-1"></main>
 
 <footer>
   <b>StreamEo</b> 🍿<br>
@@ -643,7 +645,7 @@ padding:13px 20px;border-radius:999px;box-shadow:0 10px 30px rgba(229,9,20,.45);
   </div>
 </footer>
 
-<div id="player" hidden>
+<div id="player" role="dialog" aria-label="Video player" tabindex="-1" hidden>
   <div class="player-top">
     <button class="icon-btn" id="playerClose" title="Band karo (Esc)">✕</button>
     <h3 id="playerTitle">Player</h3>
@@ -665,7 +667,7 @@ padding:13px 20px;border-radius:999px;box-shadow:0 10px 30px rgba(229,9,20,.45);
 <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.17/dist/hls.min.js" integrity="sha384-9v3HcdYrO3D+OPDTjZ40RXocgE4GtXVCd3/mCS62JsM93JXgI1afJVuwjFvsu6ni" crossorigin="anonymous" referrerpolicy="no-referrer" onerror="var s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.17/hls.min.js';s.integrity='sha384-9v3HcdYrO3D+OPDTjZ40RXocgE4GtXVCd3/mCS62JsM93JXgI1afJVuwjFvsu6ni';s.crossOrigin='anonymous';s.referrerPolicy='no-referrer';document.head.appendChild(s)"></script>
 <script>
 "use strict";
-const APP_BUILD = "v2.17-seekfix";
+const APP_BUILD = "v3.0-cinema";
 const $ = (s, r) => (r || document).querySelector(s);
 const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
 const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -1376,6 +1378,11 @@ const ADDON_SEED_POOL = [
 ["tt10872600", "movie", "Spider-Man: No Way Home", "2021", "8.2", ["Action", "Adventure", "Fantasy"], "When a spell goes wrong, dangerous foes from other worlds start to appear."],
 ["tt0133093", "movie", "The Matrix", "1999", "8.7", ["Action", "Sci-Fi"], "Computer hacker Neo discovers the shocking truth about the simulated reality of the Matrix."],
 ["tt2911666", "movie", "John Wick", "2014", "7.4", ["Action", "Crime", "Thriller"], "An ex-hitman comes out of retirement to track down the gangsters who wronged him."],
+["tt1312171", "series", "The Umbrella Academy", "2019–2024", "7.9", ["Action", "Adventure", "Fantasy"], "A dysfunctional family of adopted superhero siblings reunites to solve the mystery of their father's death."],
+["tt0412142", "series", "House", "2004–2012", "8.7", ["Drama", "Mystery"], "An unconventional doctor and his team tackle puzzling medical cases."],
+["tt0460681", "series", "Supernatural", "2005–2020", "8.4", ["Drama", "Fantasy", "Horror"], "Two brothers travel across America hunting supernatural beings."],
+["tt0279600", "series", "Smallville", "2001–2011", "7.5", ["Action", "Adventure", "Drama"], "A young Clark Kent discovers his powers and his destiny in the town of Smallville."],
+["tt0168366", "series", "Pokémon", "1997–2023", "7.6", ["Animation", "Adventure", "Fantasy"], "Ash and Pikachu explore new regions, make friends, and pursue their Pokémon dreams."],
 ["tt0903747", "series", "Breaking Bad", "2008–2013", "9.5", ["Crime", "Drama", "Thriller"], "A chemistry teacher turns to manufacturing methamphetamine with a former student."],
 ["tt4574334", "series", "Stranger Things", "2016–2025", "8.7", ["Drama", "Fantasy", "Horror"], "A small town uncovers secret experiments and supernatural forces when a boy vanishes."],
 ["tt11280740", "series", "Severance", "2022–", "8.7", ["Drama", "Mystery", "Sci-Fi"], "Office workers have their memories surgically divided between work and personal lives."],
@@ -1388,8 +1395,8 @@ const ADDON_SEED_POOL = [
 ["tt7366338", "series", "Chernobyl", "2019", "9.3", ["Drama", "History", "Thriller"], "The gripping true story of the 1986 Chernobyl nuclear disaster."]
 ].map((r) => ({
 id: r[0], type: r[1], name: r[2], releaseInfo: r[3], imdbRating: r[4], genres: r[5], description: r[6],
-poster: "https://images.metahub.space/poster/medium/" + r[0] + "/img",
-background: "https://images.metahub.space/background/medium/" + r[0] + "/img"
+poster: ["tt0816692", "tt1375666", "tt0468569", "tt0133093", "tt2911666", "tt1312171", "tt0168366", "tt0903747", "tt0412142", "tt0460681", "tt0279600", "tt15239678"].includes(r[0]) ? "./assets/" + r[0] + ".jpg" : "https://images.metahub.space/poster/medium/" + r[0] + "/img",
+background: r[0] === "tt15239678" ? "./assets/dune-backdrop.jpg" : "https://images.metahub.space/background/medium/" + r[0] + "/img"
 }));
 async function fetchMeta(type, id) {
 const addons = metaAddons(type, id);
@@ -1688,22 +1695,11 @@ movie: ADDON_SEED_POOL.filter((x) => x.type === "movie"),
 series: ADDON_SEED_POOL.filter((x) => x.type === "series"),
 anime: ADDON_SEED_POOL.filter((x) => (x.genres || []).includes("Animation"))
 };
-if (!S.heroPool || !S.heroPool.length) S.heroPool = ADDON_SEED_POOL.slice();
+if (!S.heroPool || !S.heroPool.length) S.heroPool = ADDON_SEED_POOL.slice().sort((a, b) => (b.id === "tt15239678") - (a.id === "tt15239678"));
 async function viewHome(my = S.routeSeq) {
 const app = $("#app");
 if (needBootWait(app)) return;
 const contItems = progress.list().slice(0, 15);
-if (S.offline) {
-app.innerHTML =
-'<div class="hero"><div class="hero-bg" style="background-image:url(\'' + svgBackdrop("StreamEo", "hero") + '\')"></div>' +
-'<div class="hero-info"><div class="hero-kicker">Welcome to StreamEo</div>' +
-'<div class="hero-title">Apni Khud Ki Streaming 🍿</div>' +
-'<div class="hero-meta"><span class="badge cyan">Stremio-type</span><span class="badge">Addons</span><span class="badge gold">Free</span></div>' +
-'<p class="hero-desc">Internet se connect karke refresh karo — movies, series, search, player sab live ho jayega. Neeche wali <b>Free Forever</b> row bina internet ke bhi design dikhati hai.</p>' +
-'<div class="hero-btns"><a class="btn btn-primary" href="#/addons" data-route="#/addons">🧩 Add-ons Dekho</a></div></div></div>' +
-(builtinOn("free") ? rowHTML("Free Forever", FREE_ITEMS, "", "", "free") : "");
-return;
-}
 let heroItems = (S.heroPool && S.heroPool.length) ? S.heroPool.slice(0, 6) : ADDON_SEED_POOL.slice(0, 6);
 let hi = 0;
 const renderHero = () => {
@@ -1716,16 +1712,16 @@ const genres = (m.genres || m.genre || []).slice ? (m.genres || []).slice(0, 3).
 const isFree = m.free || String(m.id || "").indexOf("free-") === 0;
 const href = isFree ? "#/detail/free/" + m.id : "#/detail/" + (m.type || "movie") + "/" + safeEnc(m.id);
 const inList = myList.has(m.id);
-const dots = heroItems.map((_, i) => '<button class="' + (i === hi % heroItems.length ? "on" : "") + '" data-dot="' + i + '"></button>').join("");
+const dots = heroItems.map((_, i) => '<button class="' + (i === hi % heroItems.length ? "on" : "") + '" data-dot="' + i + '" aria-label="Show featured title ' + (i + 1) + '" aria-pressed="' + (i === hi % heroItems.length) + '"></button>').join("");
 hb.innerHTML =
 '<div class="hero-bg" style="background-image:url(\'' + esc(backdropOf(m)).replace(/'/g, "%27") + '\')"></div>' +
-'<div class="hero-info"><div class="hero-kicker">' + (isFree ? "Free Forever" : "Trending Now") + "</div>" +
+'<div class="hero-info"><div class="hero-kicker"><span class="feature-dot"></span>' + (isFree ? "FREE TO EXPLORE" : "THE SPOTLIGHT") + "</div>" +
 '<div class="hero-title">' + esc(m.name) + "</div>" +
 '<div class="hero-meta">' + rating + "<span>" + year + "</span>" + genres + "</div>" +
 '<p class="hero-desc">' + esc(m.description || m.desc || "Play dabao — bina wait ke best stream link auto-resolve hoke turant chalega!") + "</p>" +
 '<div class="hero-btns">' +
-'<button class="btn btn-primary" id="heroQuickPlay">▶ Play</button>' +
-'<a class="btn btn-ghost" href="' + href + '" data-route="' + href + '">ⓘ More Info</a>' +
+'<button class="btn btn-primary" id="heroQuickPlay">▶ &nbsp; Watch now</button>' +
+'<a class="btn btn-ghost" href="' + href + '" data-route="' + href + '">More info &nbsp; →</a>' +
 '<button class="btn ' + (inList ? "" : "btn-ghost") + '" id="heroListBtn">' + (inList ? "✓ In My List" : "+ My List") + "</button>" +
 "</div></div>" +
 '<div class="hero-dots">' + dots + "</div>";
@@ -1746,29 +1742,28 @@ try {
     _img.src = _nu; // silent warm-up (no <link rel=preload> console warnings)
   }
 } catch (e) {}
-const restartHero = () => { clearInterval(S.heroTimer); S.heroTimer = setInterval(() => { if (document.hidden || !$("#player").hidden || window.scrollY > 320) return; hi++; if ($("#heroBox")) renderHero(); }, 12000); };
+const restartHero = () => { clearInterval(S.heroTimer); S.heroTimer = setInterval(() => { if (document.hidden || S.offline || !$("#player").hidden || window.scrollY > 320) return; hi++; if ($("#heroBox")) renderHero(); }, 12000); };
 const homeChipsHTML =
+'<div class="discovery-heading"><div><p class="eyebrow">A LITTLE ESCAPE. ENDLESS POSSIBILITIES.</p><h1>What’s your next watch?</h1></div><a href="#/direct" data-route="#/direct" class="local-open">+ Open a stream</a></div>' +
 '<div class="chip-bar" id="homeChipBar">' +
-'<button type="button" class="chip on" data-hcat="all">Trending</button>' +
-'<button type="button" class="chip" data-hcat="livetv">Live TV</button>' +
+'<button type="button" class="chip on" data-hcat="all">For you</button>' +
 '<button type="button" class="chip" data-hcat="movie">Movies</button>' +
-'<button type="button" class="chip" data-hcat="series">Series</button>' +
-'<button type="button" class="chip" data-hcat="free">Free</button>' +
-'<button type="button" class="chip" data-route-jump="#/lab">11,800+ Live Channels →</button>' +
-'<button type="button" class="chip" data-route-jump="#/movies">Movies Hub →</button>' +
-'<button type="button" class="chip" data-route-jump="#/series">Series Hub →</button>' +
-'<button type="button" class="chip" data-route-jump="#/anime">Anime Hub →</button>' +
-'<button type="button" class="chip" data-route-jump="#/direct">🔗 Link se Play</button>' +
-'</div>';
+'<button type="button" class="chip" data-hcat="series">TV series</button>' +
+'<button type="button" class="chip" data-hcat="free">Free to watch</button>' +
+'<button type="button" class="chip" data-hcat="livetv">Live TV</button>' +
+'<button type="button" class="chip" data-cinema-local>+ Local file</button>' +
+'<span class="catalog-status"><i></i> Powered by your add-ons</span></div>';
 app.innerHTML =
-'<div class="hero" id="heroBox"></div>' +
 homeChipsHTML +
+'<div class="hero" id="heroBox"></div>' +
 '<div id="homeContRow">' + (contItems.length ? rowHTML("Continue Watching", contItems, "#/list", "Manage →", "all") : "") + '</div>' +
-(builtinOn("freetv") ? rowHTML("Live TV Channels", FREETV_LIVE_ITEMS, "#/lab", "All 11,800+ Live Channels →", "livetv") : "") +
 '<div id="homeTop10"></div>' +
+rowHTML("Trending movies", ADDON_SEED_POOL.filter((m) => m.type === "movie").slice().sort((a, b) => Number(b.poster.startsWith("./")) - Number(a.poster.startsWith("./"))).slice(0, 12), "#/movies", "Explore all", "movie") +
+rowHTML("Series worth staying in for", ADDON_SEED_POOL.filter((m) => m.type === "series").slice().sort((a, b) => Number(b.poster.startsWith("./")) - Number(a.poster.startsWith("./"))), "#/series", "Explore all", "series") +
 (builtinOn("free") ? rowHTML("Free Forever", FREE_ITEMS, "", "", "free") : "") +
 (builtinOn("classics") ? rowHTML("Classic Films (Free)", CLASSICS, "", "", "free") : "") +
 '<div id="homePrimary">' + skeletonRows(2) + '</div>' +
+(builtinOn("freetv") ? rowHTML("Live TV Channels", FREETV_LIVE_ITEMS, "#/lab", "All 11,800+ Live Channels →", "livetv") : "") +
 '<div id="homeExtra"></div>';
 window._heroItems = heroItems;
 renderHero(); restartHero();
@@ -3912,22 +3907,23 @@ poster: opts.poster || "", backdrop: opts.backdrop || "" });
 }
 stage.innerHTML =
 '<div class="np-wrap ambient" id="npWrap">' +
-'<video id="npVideo" crossorigin="anonymous" playsinline preload="auto" poster="' + esc(opts.poster || "") + '"></video>' +
+'<video id="npVideo" crossorigin="anonymous" playsinline preload="auto" poster="' + esc(opts.backdrop || opts.poster || "") + '"></video>' +
 '<div class="np-spinner" id="npSpin"><div></div></div>' +
 '<div class="np-flash" id="npFlash"></div>' +
+'<button type="button" class="np-center-play" id="npCenterPlay" aria-label="Play video" hidden>' + npIcon("play") + '</button>' +
 '<div class="np-speed2x" id="npSpeed2x" hidden>⚡ 2.0x SPEED (HOLD)</div>' +
 '<button type="button" class="np-skip" id="npSkipIntro" hidden>⏭ Skip Intro</button>' +
 '<div class="np-lock-veil" id="npLockVeil" hidden><button type="button" class="np-unlock-btn" id="npUnlockBtn">🔒 Screen Locked — Tap to Unlock</button></div>' +
 '<div class="np-topgrad"></div>' +
 '<div class="np-controls" id="npControls">' +
-'<div class="np-progress" id="npProg"><div class="np-buffered" id="npBuf"></div>' +
+'<div class="np-progress" id="npProg" role="slider" tabindex="0" aria-label="Seek playback" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div class="np-buffered" id="npBuf"></div>' +
 '<div class="np-played" id="npPlayed"><div class="np-knob"></div></div>' +
 '<div class="np-tip" id="npTip">0:00</div></div>' +
 '<div class="np-row"><div class="np-left">' +
 '<button class="np-btn" id="npPlay" title="Play/Pause (Space)">' + npIcon("play") + "</button>" +
 '<button class="np-btn" id="npBack" title="10 sec peeche (Left arrow)"><span class="np-10">↺<small>10</small></span></button>' +
 '<button class="np-btn" id="npFwd" title="10 sec aage (Right arrow)"><span class="np-10">↻<small>10</small></span></button>' +
-'<button class="np-btn np-textbtn" id="npSkip85" title="Skip Intro / +85 sec (Tab)">⏭ +85s</button>' +
+'<button class="np-btn np-textbtn" id="npSkip85" title="Skip ahead 85 seconds">⏭ +85s</button>' +
 '<button class="np-btn" id="npMute" title="Mute (M)">' + npIcon("vol") + "</button>" +
 '<input class="np-vol" id="npVol" type="range" min="0" max="1" step="0.05" value="1" title="Volume">' +
 '<span class="np-time" id="npTime">0:00 / 0:00</span>' +
@@ -3935,7 +3931,7 @@ stage.innerHTML =
 '<span class="np-qbadge" id="npQ">HD</span>' +
 '<button class="np-btn np-textbtn" id="npEpBtn" title="Seasons &amp; Episodes (E)" hidden>📚 Episodes</button>' +
 '<button class="np-btn" id="npNext" title="Next episode (N)" hidden>' + npIcon("next") + '</button>' +
-'<button class="np-btn np-textbtn" id="npFit" title="Video Fit / Crop Black Bars (V)">⛶ Fit</button>' +
+'<button class="np-btn np-textbtn" id="npFit" title="Video Fit / Crop Black Bars (V)">Fit</button>' +
 '<button class="np-btn np-cc" id="npCC" title="Subtitles &amp; Sync">CC</button>' +
 '<button class="np-btn" id="npLockBtn" title="Lock Controls (L)" style="font-size:15px">🔓</button>' +
 '<button class="np-btn" id="npPip" title="Picture in picture">' + npIcon("pip") + "</button>" +
@@ -4115,9 +4111,9 @@ const isMenuOpen = () => !menu.hidden;
 const showUI = () => {
 player.classList.remove("np-idle");
 clearTimeout(idleTimer);
-if (!v.paused && !v.ended) idleTimer = setTimeout(() => { if (!isMenuOpen()) player.classList.add("np-idle"); }, 3000);
+if (!v.paused && !v.ended) idleTimer = setTimeout(() => { if (!isMenuOpen() && !(epDrawer && !epDrawer.hidden) && (document.activeElement === player || !player.contains(document.activeElement))) player.classList.add("np-idle"); }, 3000);
 };
-const updQBadge = () => { $("#npQ").textContent = parseQuality({ title: (sources[srcIdx] && sources[srcIdx].label) || "" }); };
+const updQBadge = () => { const source = sources[srcIdx] || {}; $("#npQ").textContent = opts.localFile ? "LOCAL" : parseQuality({ title: source.label || "" }); };
 const trySource = (i, proxyIdx) => {
 const sameSource = i === srcIdx;
 srcIdx = i;
@@ -4229,9 +4225,9 @@ setTimeout(() => { if (!closed && !player.hidden) openCloudServer(curOpts, 0); }
 S.onStreamError = handleStreamErr;
 v.addEventListener("error", handleStreamErr);
 const playBtn = $("#npPlay");
-const setPlayIcon = () => { playBtn.innerHTML = npIcon(v.paused || v.ended ? "play" : "pause"); };
+const setPlayIcon = () => { playBtn.innerHTML = npIcon(v.paused || v.ended ? "play" : "pause"); playBtn.setAttribute("aria-label", v.paused || v.ended ? "Play" : "Pause"); $("#npCenterPlay").hidden = !v.paused; };
 const saveVideoProgressNow = () => {
-if (!isFinite(v.duration) || !v.duration || v.currentTime < 5) return;
+if (opts.noHistory || !isFinite(v.duration) || !v.duration || v.currentTime < 5) return;
 progress.set(pkey, { t: Math.floor(v.currentTime), d: Math.floor(v.duration), name: opts.title,
 type: opts.type === "series" ? "series" : "movie", poster: opts.poster || "", backdrop: opts.backdrop || "",
 link: opts.type === "series" && seriesId !== String(pkey) ? "#/detail/series/" + safeEnc(seriesId) : undefined });
@@ -4264,6 +4260,7 @@ else { v.pause(); flashShow(npIcon("pause")); }
 showUI();
 };
 playBtn.onclick = (e) => { e.stopPropagation(); togglePlay(); };
+$("#npCenterPlay").onclick = (e) => { e.stopPropagation(); togglePlay(); };
 // Seek ko har stream par kaam karna chahiye: finite duration, live (Infinity) aur
 // unknown-length proxy streams jahan browser ko duration nahi pata.
 const seekWindowEnd = () => {
@@ -4272,7 +4269,9 @@ try { if (v.seekable && v.seekable.length) max = v.seekable.end(v.seekable.lengt
 if (!isFinite(max) || max <= 0) max = (isFinite(v.duration) && v.duration > 0) ? v.duration : Infinity;
 return max;
 };
+let seekGeneration = 0;
 const seekBy = (dd) => {
+const generation = ++seekGeneration;
 const cur = Number(v.currentTime) || 0;
 const max = seekWindowEnd();
 const flash = () => flashShow(dd > 0 ? "+ " + dd + "s" : "− " + Math.abs(dd) + "s");
@@ -4281,7 +4280,7 @@ if (!isFinite(max)) {
 try { v.currentTime = Math.max(0, cur + dd); } catch (e) {}
 flash(); showUI();
 setTimeout(() => {
-if (closed) return;
+if (closed || generation !== seekGeneration) return;
 if (Math.abs((Number(v.currentTime) || 0) - cur) < 0.3 && !v.seeking) {
 toast("⚠️ Is stream me seek support nahi (live ya server Range block kar raha) — thoda wait karo / dusra server chuno.", true);
 }
@@ -4293,11 +4292,11 @@ const target = Math.max(0, Math.min(cur + dd, max));
 try { v.currentTime = target; } catch (e) { toast("Seek fail: " + ((e && e.message) || e), true); return; }
 flash(); showUI();
 setTimeout(() => {
-if (closed) return;
+if (closed || generation !== seekGeneration) return;
 if (Math.abs((Number(v.currentTime) || 0) - target) > 1.5 && !v.seeking) {
 try { v.currentTime = target; } catch (e) {}
 setTimeout(() => {
-if (closed) return;
+if (closed || generation !== seekGeneration) return;
 if (Math.abs((Number(v.currentTime) || 0) - target) > 1.5 && !v.seeking) {
 toast("⚠️ Seek nahi ho raha — server Range requests support nahi kar raha. Dusra server ya proxy try karo.", true);
 }
@@ -4377,13 +4376,18 @@ clickTimer = setTimeout(() => { clickTimer = null; togglePlay(); }, 250);
 });
 const prog = $("#npProg"), played = $("#npPlayed"), buf = $("#npBuf"),
 tip = $("#npTip"), timeEl = $("#npTime");
-const updTime = () => { timeEl.textContent = fmtTime(v.currentTime) + " / " + fmtTime(v.duration); };
+const updTime = () => {
+const duration = Number.isFinite(v.duration) && v.duration > 0 ? v.duration : 0;
+timeEl.textContent = fmtTime(v.currentTime) + (duration ? " / " + fmtTime(duration) : (isLiveItem ? " • LIVE" : " / --:--"));
+prog.setAttribute("aria-valuenow", duration ? Math.round(v.currentTime / duration * 100) : 0);
+prog.setAttribute("aria-valuetext", fmtTime(v.currentTime) + (duration ? " of " + fmtTime(duration) : ""));
+};
 let lastSave = 0;
 v.addEventListener("timeupdate", () => {
 if (isFinite(v.duration) && v.duration > 0) played.style.width = (v.currentTime / v.duration * 100) + "%";
 updTime();
 if (skipIntroBtn) {
-skipIntroBtn.hidden = !(isFinite(v.duration) && v.duration > 180 && v.currentTime >= 5 && v.currentTime <= 90);
+skipIntroBtn.hidden = true; // No fabricated intro markers; manual skip remains available.
 }
 const now = Date.now();
 if (now - lastSave < 30000 || !isFinite(v.duration) || !v.duration) return;
@@ -4405,6 +4409,7 @@ return Math.min(1, Math.max(0, (clientX - r.left) / Math.max(1, r.width)));
 };
 // Scrub bhi live/unknown-duration streams par kaam kare (seekable window use karo)
 const seekToRatio = (ratio) => {
+seekGeneration++;
 const dur = (isFinite(v.duration) && v.duration > 0) ? v.duration : seekWindowEnd();
 if (!isFinite(dur) || dur <= 0) return false;
 try { v.currentTime = Math.max(0, Math.min(ratio, 1)) * dur; return true; } catch (e) { return false; }
@@ -4654,7 +4659,7 @@ if (act.dataset.act === "loop") { v.loop = !v.loop; toast("🔁 Loop: " + (v.loo
 }
 };
 $("#npSet").onclick = (e) => { e.stopPropagation(); if (isMenuOpen()) menu.hidden = true; else openMenu("main"); showUI(); };
-$("#npCC").onclick = (e) => { e.stopPropagation(); openMenu("subs"); };
+$("#npCC").onclick = (e) => { e.stopPropagation(); if (isMenuOpen() && menuView === "subs") menu.hidden = true; else openMenu("subs"); showUI(); };
 NP.closeMenu = () => {
 if (epDrawer && !epDrawer.hidden) { epDrawer.hidden = true; return true; }
 if (!menu.hidden) { menu.hidden = true; return true; }
@@ -4778,6 +4783,7 @@ const onKey = (e) => {
 if (player.hidden) return;
 const tag = document.activeElement && document.activeElement.tagName;
 if (/INPUT|TEXTAREA|SELECT/.test(tag || "") && e.key !== "Escape") return;
+if ((e.key === " " || e.key === "Enter") && tag === "BUTTON") return;
 const k = e.key;
 if (k === " ") {
 e.preventDefault();
@@ -4786,9 +4792,10 @@ clearTimeout(spaceTimer);
 spaceTimer = setTimeout(startHold2x, 320);
 }
 else if (k === "k" || k === "K") { e.preventDefault(); togglePlay(); }
-else if (k === "ArrowRight" || k === "l" || k === "L") seekBy(10);
-else if (k === "ArrowLeft" || k === "j" || k === "J") seekBy(-10);
-else if (k === "Tab") { e.preventDefault(); skipIntroNow(); }
+else if (k === "ArrowRight" || k === "l" || k === "L") { e.preventDefault(); seekBy(10); }
+else if (k === "ArrowLeft" || k === "j" || k === "J") { e.preventDefault(); seekBy(-10); }
+else if (k === "Home") { e.preventDefault(); seekToRatio(0); showUI(); }
+else if (k === "End") { e.preventDefault(); seekToRatio(1); showUI(); }
 else if (k === "v" || k === "V") { e.preventDefault(); cycleFit(); showUI(); }
 else if (k === "g" || k === "G") { e.preventDefault(); ambientOn = !ambientOn; wrap.classList.toggle("ambient", ambientOn); toast("🌈 Ambient Glow: " + (ambientOn ? "ON" : "OFF")); }
 else if (k === "e" || k === "E") { const eb = $("#npEpBtn"); if (eb && !eb.hidden) eb.click(); }
@@ -4805,7 +4812,7 @@ else if ((k === "n" || k === "N") && S.current && S.current.next) { hideUpnext()
 };
 const onKeyUp = (e) => {
 if (player.hidden) return;
-if (e.key === " ") {
+if (e.key === " " && !/INPUT|TEXTAREA|SELECT|BUTTON/.test((document.activeElement || {}).tagName || "")) {
 clearTimeout(spaceTimer);
 if (holding2x) stopHold2x();
 else togglePlay();
@@ -4814,6 +4821,7 @@ else togglePlay();
 document.addEventListener("keydown", onKey);
 document.addEventListener("keyup", onKeyUp);
 stage.addEventListener("mousemove", showUI, { passive: true });
+player.addEventListener("focusin", showUI);
 showUI();
 updQBadge();
 NP.cleanup = () => {
@@ -4825,8 +4833,11 @@ document.removeEventListener("keydown", onKey);
 document.removeEventListener("keyup", onKeyUp);
 document.removeEventListener("fullscreenchange", setFsIcon);
 stage.removeEventListener("mousemove", showUI);
+player.removeEventListener("focusin", showUI);
+document.removeEventListener("webkitfullscreenchange", setFsIcon);
 clearTimeout(idleTimer); clearInterval(upTimer); clearInterval(statsTimer); clearTimeout(sleepTimer); clearTimeout(holdTimer); clearTimeout(spaceTimer); clearTimeout(S.nextTimer); clearTimeout(clickTimer); if (stallWatch) clearInterval(stallWatch); fbPromise = null;
 if (v && v._audioCtx) { try { v._audioCtx.close(); } catch (e) {} v._audioCtx = null; v._gainNode = null; }
+tracks.forEach((t) => { if (t.el.src.startsWith("blob:")) URL.revokeObjectURL(t.el.src); });
 destroyHls();
 };
 }
@@ -4886,13 +4897,17 @@ function toggleMiniPlayer(forceState) {
 const player = $("#player"), mBtn = $("#playerMini");
 if (!player || player.hidden) return;
 const nextMini = typeof forceState === "boolean" ? forceState : !player.classList.contains("mini-mode");
+if (nextMini) {
+  ["#npMenu", "#npEpDrawer", "#npStats"].forEach((sel) => { const panel = $(sel); if (panel) panel.hidden = true; });
+}
 if (nextMini && document.fullscreenElement) {
 try { document.exitFullscreen().catch(function () {}); } catch (e) {}
 }
 player.classList.toggle("mini-mode", nextMini);
 document.body.style.overflow = nextMini ? "" : "hidden";
 if (mBtn) {
-mBtn.textContent = nextMini ? "⛶ Expand" : "🗗";
+mBtn.innerHTML = mBtn.dataset.icon || "🗗";
+mBtn.setAttribute("aria-label", nextMini ? "Expand player" : "Mini player (P)");
 mBtn.title = nextMini ? "Expand to Full Player (P)" : "Shrink to Floating Corner Mini-Player (P)";
 }
 toast(nextMini ? "🗗 Mini-Player Docked! Ab aap poori site browse kar sakte ho video band kiye bina" : "⛶ Full Player Restored");
@@ -4908,7 +4923,7 @@ player.classList.remove("np-idle", "mini-mode", "fs-mode");
 try { const _sh = $("#srvSheet"); if (_sh) _sh.hidden = true; } catch (e) {}
 try { document.body.classList.remove("fs-mode"); } catch (e) {}
 const mBtn = $("#playerMini");
-if (mBtn) mBtn.textContent = "🗗";
+if (mBtn) { mBtn.innerHTML = mBtn.dataset.icon || "🗗"; mBtn.setAttribute("aria-label", "Mini player (P)"); }
 $("#playerBar").style.display = "";
 try {
 const v = $("#playerStage video");
@@ -5076,7 +5091,7 @@ try { S.lastPushHash = djb2(syncSnapshot()); } catch (e) {}
 }
 function afterRemote(manual) {
 try {
-applyTheme("netflix");
+applyTheme(store.get("se_theme", "stremio"));
 updateNavListBadge();
 const cur = store.get("se_addons", DEFAULT_ADDON_URLS);
 const before = (S.addons || []).map((a) => a.base).sort().join("|");
@@ -5643,13 +5658,14 @@ rd.readAsText(f);
 $("#m3uFilter").oninput = renderM3uChannels;
 }
 const THEMES = [
+{ id: "stremio", name: "🟣 StreamEo Cinema", desc: "A calm, immersive purple cinema experience" },
 { id: "hacker", name: "💻 Cyber Hacker", desc: "Lakshay Dev Matrix Neon Terminal UI" },
 { id: "netflix", name: "🎬 Netflix Dark", desc: "Bilkul Netflix jaisa cinema look" },
 { id: "default", name: "🟣 StreamEo Purple", desc: "Original purple glass look" },
 { id: "oled", name: "⚫ OLED Pitch Black", desc: "Pure black + crimson red" }
 ];
 function applyTheme(id) {
-const t = THEMES.some((x) => x.id === id) ? id : "hacker";
+const t = THEMES.some((x) => x.id === id) ? id : "stremio";
 if (document.body && document.body.dataset) document.body.dataset.theme = t;
 store.set("se_theme", t);
 if (typeof S !== "undefined" && typeof S.paintMatrix === "function") S.paintMatrix();
@@ -5836,7 +5852,7 @@ const baseActions = [
 { icon: "📡", title: "Open Live TV, IPTV M3U Deck & Direct Stream Lab", sub: "ROUTE // #/lab", run: () => goRoute("#/lab") },
 { icon: "🎲", title: "Surprise Me — Random Movie/Series", sub: "COMMAND // /surprise", run: () => surpriseMe() },
 { icon: "💻", title: "Switch Theme: Cyber Matrix Hacker (Lakshay Dev Edition)", sub: "THEME // /theme hacker", run: () => { applyTheme("hacker"); toast("💻 Cyber Hacker Theme Activated"); } },
-{ icon: "🎬", title: "Switch Theme: Netflix Cinema Dark", sub: "THEME // /theme netflix", run: () => { applyTheme("netflix"); toast("🎬 Netflix Theme Activated"); } },
+{ icon: "🎬", title: "Switch Theme: Netflix Cinema Dark", sub: "THEME // /theme netflix", run: () => { applyTheme(store.get("se_theme", "stremio")); toast("🎬 Netflix Theme Activated"); } },
 { icon: "⚫", title: "Switch Theme: OLED Pitch Black", sub: "THEME // /theme oled", run: () => { applyTheme("oled"); toast("⚫ OLED Theme Activated"); } },
 { icon: "🧩", title: "Manage Addons & 1-Click Installers", sub: "ROUTE // #/addons", run: () => goRoute("#/addons") },
 { icon: "☁️", title: "Cloud Sync & Local JSON Backup Export", sub: "ROUTE // #/sync", run: () => goRoute("#/sync") },
@@ -6253,7 +6269,7 @@ lastErrToast = now;
 toast("⚠ " + m.slice(0, 80) + " — refresh karo (Ctrl+R)", true);
 } catch (err) {}
 });
-applyTheme("netflix");
+applyTheme(store.get("se_theme", "stremio"));
 initThemeUI();
 try { armTopNavGuard(); } catch (e) {}
 initMatrix();
@@ -6307,16 +6323,18 @@ if ((changed || S.d1Hydrated) && $("#player").hidden) { S._lastRouteAt = 0; rout
     l.type = r.type = "button"; l.className = "row-nav left"; r.className = "row-nav right";
     l.setAttribute("aria-label","Left scroll"); r.setAttribute("aria-label","Right scroll");
     l.textContent = "\u2039"; r.textContent = "\u203A";
-    row.appendChild(l); row.appendChild(r);
+    var actions = document.createElement("div"); actions.className = "row-actions"; actions.appendChild(l); actions.appendChild(r); (row.querySelector(".row-head") || row).appendChild(actions);
     function step(){ return Math.max(280, Math.round(sc.clientWidth * 0.85)); }
     l.addEventListener("click", function(e){ e.preventDefault(); e.stopPropagation(); sc.scrollBy({ left: -step(), behavior: reduce ? "auto" : "smooth" }); });
     r.addEventListener("click", function(e){ e.preventDefault(); e.stopPropagation(); sc.scrollBy({ left: step(), behavior: reduce ? "auto" : "smooth" }); });
     function upd(){
       var max = sc.scrollWidth - sc.clientWidth - 6;
+      l.disabled = sc.scrollLeft <= 6; r.disabled = sc.scrollLeft >= max || max <= 0;
       row.classList.toggle("at-start", sc.scrollLeft <= 6);
       row.classList.toggle("at-end", sc.scrollLeft >= max || max <= 0);
     }
     sc.addEventListener("scroll", upd, { passive: true });
+    if (typeof ResizeObserver !== "undefined") { var ro = new ResizeObserver(upd); ro.observe(sc); }
     setTimeout(upd, 80);
   }
   function enhanceRows(){ try { document.querySelectorAll("#app .row:not([data-nav-ready])").forEach(ensureRowNav); } catch (e) {} }
@@ -6469,5 +6487,6 @@ if ((changed || S.d1Hydrated) && $("#player").hidden) { S._lastRouteAt = 0; rout
 boot();
 try { console.log("%cStreamEo " + APP_BUILD + "%c — fully-functional stable build • circuit-breaker + incremental search ON", "background:#00ff88;color:#000;font-weight:900;padding:2px 8px;border-radius:4px", "color:#22d3ee"); } catch (e) {}
 </script>
+<script src="./cinema.js"></script>
 </body>
 </html>
