@@ -1,0 +1,17 @@
+# Security and privacy
+
+## Reporting
+
+Do not post credentials, private URLs, watch history or exploit details in public issues. Use this repository's GitHub **Security → Report a vulnerability** if private vulnerability reporting has been enabled. If it is not enabled, open a minimal issue asking the maintainer to establish a private reporting channel, without sensitive details. No response-time guarantee or external audit is claimed.
+
+## Trust boundaries
+
+- Local profiles isolate UI data, not users with access to the same browser/origin. Library, progress, preferences, origin-level playback observations and optional sync secrets are saved in localStorage. Clearing site data removes them. A denied/quota-exhausted store can become session-only; export a private backup.
+- Opt-in sync uses a randomly generated 256-bit bearer secret, HTTPS, Authorization headers, no query credentials, SHA-256 identifiers at rest, and atomic revision checks. Possession of the secret grants read/write access. It is **not end-to-end encrypted**, password login, device authentication, or a multi-tenant authorization service. D1/worker operators can read snapshots. Losing the secret has no recovery flow. Disconnect removes local authorization, not cloud data. For deletion/rotation, operators must remove the corresponding hashed row from D1; do not paste a secret in a public console transcript.
+- Cloud sync is off by default. Weak/shared legacy codes are not migrated or queried. Old remote shared data is not deleted by this migration. Local changes remain marked dirty across reloads; conflicting cloud revisions stop uploads instead of overwriting silently. Export local data before explicitly downloading a conflicting snapshot.
+- Configure exact `SYNC_ALLOWED_ORIGINS`; an origin allowlist is not authentication. Keep secrets out of access/request logs. Apply Cloudflare/WAF rate limits, quotas and retention before offering public sync. Optional `SYNC_RATE_LIMITER` binding is supported. No unrestricted public sync hosting is provided.
+- Diagnostics use a field allowlist and anonymous provider labels, not arbitrary error scrubbing. Reports omit URLs/origins/titles/history/secrets. Library backups are separate and **private**: add-on URLs may contain credentials. Nothing is automatically uploaded as telemetry by these features.
+- Add-ons and iframe players are third-party services. They can observe requests/IPs/title identifiers and may log configured URL tokens. Manifest consent is not a safety or licensing verification. Browser network errors cannot reliably distinguish CORS from network failure.
+- Public playback proxies are opt-in: they receive complete stream URLs. A private worker is preferable. The legacy media-proxy endpoint is a separate trust boundary from private sync: its optional URL token can appear in logs, and its host blocklist is **not comprehensive SSRF prevention**. Restrict `ALLOW_HOSTS`, use access controls/rate limits and audit redirect/DNS behavior before deploying a public proxy. Never use it to bypass authorization, DRM, subscriptions or licensing restrictions.
+
+The app retains legacy inline scripting and a broad third-party media CSP. Profile isolation does not protect against same-origin XSS. A restrictive CSP/module refactor, independent security review, end-to-end encryption and authenticated multi-user hosting remain roadmap work. Synthetic tests do not establish production security certification.

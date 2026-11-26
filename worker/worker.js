@@ -1,3 +1,4 @@
+import { handleSync } from "./sync.mjs";
 /**
  * StreamEo Universal Media Proxy — Cloudflare Worker (single file)
  *
@@ -13,6 +14,7 @@ const BLOCK_HOSTS = ["localhost", "127.0.0.1", "0.0.0.0", "::1", "metadata.googl
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+    if (url.pathname === "/api/sync" || url.pathname === "/api/sync/health") return handleSync(request, env);
     const token = (env && env.TOKEN) || "";
     const allow = String((env && env.ALLOW_HOSTS) || "").split(",").map((s) => s.trim().toLowerCase()).filter(Boolean);
 

@@ -5,6 +5,20 @@ for (const [i, match] of [
   ...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g),
 ].entries())
   new vm.Script(match[1], { filename: `index-inline-${i}.js` });
-for (const path of ["cinema.js", "sw.js"])
+for (const path of [
+  "cinema.js",
+  "addon-engine.js",
+  "platform-core.js",
+  "platform-ui.js",
+  "sw.js",
+])
   new vm.Script(fs.readFileSync(path, "utf8"), { filename: path });
-console.log("All frontend scripts parse successfully.");
+const { spawnSync } = require("node:child_process");
+for (const path of ["worker/worker.js", "worker/sync.mjs"]) {
+  const result = spawnSync(process.execPath, ["--check", path], {
+    encoding: "utf8",
+  });
+  if (result.status !== 0)
+    throw new Error(result.stderr || "Worker syntax failed");
+}
+console.log("Frontend and worker scripts parse successfully.");

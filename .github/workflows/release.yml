@@ -1,0 +1,26 @@
+name: Package release
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - run: npm ci
+      - run: npm run vendor:hls
+      - run: git diff --exit-code -- assets/hls.min.js assets/HLS-LICENSE.txt
+      - run: npm run release:package
+      - uses: actions/upload-artifact@v4
+        with:
+          name: streameo-release
+          path: release/
+          retention-days: 14

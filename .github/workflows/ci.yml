@@ -1,0 +1,39 @@
+name: Quality and security
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - run: npm ci
+      - run: npm audit --audit-level=high
+      - run: npx playwright install --with-deps chromium
+      - run: npm test
+      - name: Verify pinned vendored dependency
+        run: |
+          npm run vendor:hls
+          git diff --exit-code -- assets/hls.min.js assets/HLS-LICENSE.txt
+      - name: Verify reproducible release archive
+        run: |
+          npm run release:package
+          cp release/SHA256SUMS /tmp/first-sha256
+          npm run release:package
+          diff /tmp/first-sha256 release/SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: test-results
+          path: test-results/
+          retention-days: 7

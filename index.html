@@ -664,10 +664,11 @@ padding:13px 20px;border-radius:999px;box-shadow:0 10px 30px rgba(229,9,20,.45);
 
 <div id="toasts"></div>
 
-<script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.17/dist/hls.min.js" integrity="sha384-9v3HcdYrO3D+OPDTjZ40RXocgE4GtXVCd3/mCS62JsM93JXgI1afJVuwjFvsu6ni" crossorigin="anonymous" referrerpolicy="no-referrer" onerror="var s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.17/hls.min.js';s.integrity='sha384-9v3HcdYrO3D+OPDTjZ40RXocgE4GtXVCd3/mCS62JsM93JXgI1afJVuwjFvsu6ni';s.crossOrigin='anonymous';s.referrerPolicy='no-referrer';document.head.appendChild(s)"></script>
+<script src="./platform-core.js"></script>
+<script src="./addon-engine.js"></script>
 <script>
 "use strict";
-const APP_BUILD = "v3.0-cinema";
+const APP_BUILD = "v3.2-platform";
 const $ = (s, r) => (r || document).querySelector(s);
 const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
 const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -682,8 +683,9 @@ if (!s) return "";
 if (s.indexOf("http://") === 0 && typeof location !== "undefined" && location.protocol === "https:") return "https://" + s.slice(7);
 return s;
 };
-const _memStore = {};
-const LOCAL_D1_KEYS = ["se_sync_code", "se_sync_api", "se_sync_ts", "se_sync_msg", "se_proxy_url"];
+const localProfiles = PlatformCore.createProfiles();
+const _memStore = localProfiles.current().data;
+const LOCAL_D1_KEYS = ["se_sync_code", "se_sync_api", "se_sync_ts", "se_sync_msg", "se_proxy_url", "se_sync_revision", "se_sync_dirty"];
 // Ye addon-hosts mar chuke hain (CORS-dead catalogs / hanging endpoints) — saved list + cloud sync se auto-purge hote hain
 const DEAD_ADDON_HOSTS = ["94c8cb9f702d-tmdb-addon.baby-beamup.club"];
 const _cleanAddonUrls = (arr) => {
@@ -696,60 +698,53 @@ return !DEAD_ADDON_HOSTS.some((h) => s.indexOf(h) > -1);
 };
 let _migratedFromLs = false;
 const TMDB_CACHE = {};
+// One-time legacy local migration. Never reconnect a previously shared cloud profile.
 try {
-if (typeof localStorage !== "undefined" && localStorage.length) {
-const toRemove = [];
-for (let i = 0; i < localStorage.length; i++) {
-const k = localStorage.key(i);
-if (!k) continue;
-if (LOCAL_D1_KEYS.indexOf(k) > -1) {
-try { _memStore[k] = JSON.parse(localStorage.getItem(k)); } catch (e) {}
-} else if (k.indexOf("se_") === 0) {
-try { _memStore[k] = JSON.parse(localStorage.getItem(k)); _migratedFromLs = true; } catch (e) {}
-toRemove.push(k);
+const storage = PlatformCore.safeStorage();
+if (storage) for (const key of Object.keys(storage)) {
+if (!/^se_[a-z0-9_]+$/.test(key)) continue;
+if (!key.startsWith("se_sync_")) {
+try { const value = JSON.parse(storage.getItem(key)); if (_memStore[key] === undefined) { _memStore[key] = value; localProfiles.set(key, value); } } catch (_) {}
 }
+storage.removeItem(key);
 }
-toRemove.forEach((k) => { try { localStorage.removeItem(k); } catch (e) {} });
-}
-} catch (e) {}
+} catch (_) {}
 const store = {
-get(k, d) {
-if (LOCAL_D1_KEYS.indexOf(k) > -1) {
-try { const lv = localStorage.getItem(k); if (lv != null) { const p = JSON.parse(lv); _memStore[k] = p; return p; } } catch (e) {}
-}
-let _v = _memStore[k] !== undefined ? _memStore[k] : d;
-if (k === "se_addons") _v = _cleanAddonUrls(_v);
-return _v;
-},
-set(k, v) {
+get(k,d) { const value = _memStore[k] !== undefined ? _memStore[k] : d; return k === "se_addons" ? _cleanAddonUrls(value) : value; },
+set(k,v) {
 if (k === "se_addons") v = _cleanAddonUrls(v);
-_memStore[k] = v;
-if (LOCAL_D1_KEYS.indexOf(k) > -1) {
-try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {}
-return;
-}
+_memStore[k] = v; localProfiles.set(k,v);
+if (LOCAL_D1_KEYS.includes(k)) return;
 try {
-if (typeof schedulePush === "function" && typeof SYNC_KEYS_FAST !== "undefined") {
-if (SYNC_KEYS_FAST.indexOf(k) > -1) schedulePush();
-else if (typeof SYNC_KEYS_SLOW !== "undefined" && SYNC_KEYS_SLOW.indexOf(k) > -1 && typeof markProgressDirty === "function") markProgressDirty();
+if (typeof SYNC_KEYS_FAST !== "undefined") {
+if (!S._applying && SYNC_KEYS.includes(k)) { _memStore.se_sync_dirty=true; localProfiles.set("se_sync_dirty",true); }
+if (SYNC_KEYS_FAST.includes(k)) schedulePush();
+else if (SYNC_KEYS_SLOW.includes(k)) markProgressDirty();
 }
-} catch (e) {}
+} catch (_) {}
 },
-del(k) {
-delete _memStore[k];
-if (LOCAL_D1_KEYS.indexOf(k) > -1) {
-try { localStorage.removeItem(k); } catch (e) {}
-return;
-}
-try {
-if (typeof schedulePush === "function" && typeof SYNC_KEYS_FAST !== "undefined" && SYNC_KEYS_FAST.indexOf(k) > -1) schedulePush();
-} catch (e) {}
-},
-clear() {
-Object.keys(_memStore).forEach((k) => { if (LOCAL_D1_KEYS.indexOf(k) === -1) delete _memStore[k]; });
-try { if (typeof pushSync === "function") pushSync(true, true); } catch (e) {}
-}
+del(k) { delete _memStore[k]; localProfiles.delete(k); if (!LOCAL_D1_KEYS.includes(k)) { try { if(!S._applying && SYNC_KEYS.includes(k)){_memStore.se_sync_dirty=true;localProfiles.set("se_sync_dirty",true);} schedulePush(); } catch (_) {} } },
+clear() { for (const key of Object.keys(_memStore)) if (!LOCAL_D1_KEYS.includes(key)) { delete _memStore[key]; localProfiles.delete(key); } }
 };
+let playbackMonitor = PlatformCore.createMonitor({read:()=>store.get("se_source_metrics",{}),write:(data)=>store.set("se_source_metrics",data)});
+let syncEpoch = 0;
+const syncControllers = new Set();
+function switchLocalProfile(id) {
+closePlayer();
+clearTimeout(syncTimer); syncUpload=null; syncEpoch++;
+syncControllers.forEach((controller)=>controller.abort()); syncControllers.clear();
+S._revSeq = (S._revSeq || 0) + 1;
+const next = localProfiles.switch(id);
+for (const key of Object.keys(_memStore)) delete _memStore[key];
+Object.assign(_memStore,next.data);
+S.d1Pulled=false; S.d1Hydrated=false; S.syncConflict=false; S.lastPushHash=""; S.current=null; S.epCache={}; S.d1Profiles=[];
+S.catMem={}; S.heroPool=ADDON_SEED_POOL.slice();
+progressDirty=false; for(const key of Object.keys(TMDB_CACHE))delete TMDB_CACHE[key]; addonClient.clear(); HOST_FAILS.clear(); HOST_OPEN_UNTIL.clear();
+playbackMonitor=PlatformCore.createMonitor({read:()=>store.get("se_source_metrics",{}),write:(data)=>store.set("se_source_metrics",data)});
+applyTheme(store.get("se_theme","stremio")); updateNavListBadge(); hydrateFromCache();
+S.loading=true; revalidateAddons().finally(()=>{S.loading=false;});
+goRoute("#/profiles");
+}
 const AD_TRACKER_REGEX = /(?:^|[./])(doubleclick\.net|googlesyndication\.com|google-analytics\.com|googletagmanager\.com|adservice\.google|adnxs\.com|popads\.net|popcash\.net|propellerads\.com|adsterra\.com|exoclick\.com|juicyads\.com|trafficjunky\.net|clickadu\.com|hilltopads\.net|admaven\.com|outbrain\.com|taboola\.com|scorecardresearch\.com|zedo\.com|bidvertiser\.com|revcontent\.com|mgid\.com|acscdn\.com|histats\.com|mc\.yandex\.ru|clarity\.ms|hotjar\.com|criteo\.com|pubmatic\.com|rubiconproject\.com|openx\.net|smartadserver\.com|advertising\.com|quantserve\.com|moatads\.com|amazon-adsystem\.com|adform\.net|teads\.tv|tsyndicate\.com|onclkds\.com|onclickads\.net|pushame\.com|richpush\.co|evadav\.com|galaksion\.com|rollerads\.com|mondiad\.com|bidgear\.com|adspyglass\.com|a-ads\.com|adcash\.com|propeller-tracking|popunder|adserver)(?:[/:?#]|$)|\/(ads|adserver|popunder|telemetry|pixel|beacon)\b/i;
 const AD_DOM_SELECTORS = 'ins.adsbygoogle,[id^="google_ads_"],[id*="popunder"],[class*="popunder"],iframe[src*="doubleclick"],iframe[src*="googlesyndication"],iframe[src*="popads"],iframe[src*="adsterra"],iframe[src*="exoclick"],script[src*="popads"],script[src*="propeller"],script[src*="adsterra"],script[src*="acscdn"],script[src*="histats"]';
 function isAdShieldOn() { return store.get("se_adshield", true) !== false; }
@@ -868,7 +863,7 @@ t.textContent = msg;
 $("#toasts").appendChild(t);
 setTimeout(() => { t.style.opacity = "0"; t.style.transition = ".4s"; setTimeout(() => t.remove(), 420); }, 2600);
 }
-const HTTP_CACHE = new Map();
+
 // ── Circuit breaker ────────────────────────────────────────────────────────────
 // Ek host lagataar fail kare to use thodi der ke liye skip kar do, warna ek dead
 // addon pura UI (search / home / streams) block kar deta hai.
@@ -913,55 +908,23 @@ if (i > -1) S.slowHosts.splice(i, 1);
 }
 // Promise.race wrapper — koi bhi single fetch UI ko hang nahi kar sakta
 function withCap(promise, ms, fallback) {
-let done = false;
-const t = new Promise((res) => setTimeout(() => { if (!done) { done = true; res({ __capped: true, v: fallback }); } }, ms));
-return Promise.race([
-Promise.resolve(promise).then((v) => ({ __capped: false, v }), () => ({ __capped: false, v: fallback })),
-t
-]).then((r) => { done = true; return r.v; });
+return new Promise((resolve) => {
+const timer = setTimeout(() => resolve(fallback), ms);
+Promise.resolve(promise).then((value) => { clearTimeout(timer); resolve(value); }, () => { clearTimeout(timer); resolve(fallback); });
+});
 }
-async function jget(url, timeoutMs, retries, noCache) {
-timeoutMs = timeoutMs || 9000;
-retries = (retries == null) ? 1 : retries; // network fail pe 1 auto-retry
-if (!noCache && HTTP_CACHE.has(url)) {
-const hit = HTTP_CACHE.get(url);
-if (Date.now() - hit.at < 5 * 60 * 1000) {
-if (typeof S !== "undefined") { S.lastCacheMs = 0; S.cacheHits = (S.cacheHits || 0) + 1; }
-return hit.data;
-}
-HTTP_CACHE.delete(url);
-}
-if (hostIsOpen(url)) throw new Error("HOSTOPEN " + hostOf(url)); // circuit open — turant aage badho
-let lastErr = null;
-for (let a = 0; a <= retries; a++) {
-const ctrl = new AbortController();
-const timer = setTimeout(() => ctrl.abort(), timeoutMs);
-const reqT0 = (typeof performance !== "undefined" && performance.now) ? performance.now() : Date.now();
-try {
-const r = await fetch(url, { signal: ctrl.signal });
-clearTimeout(timer);
-if (!r.ok) throw new Error("HTTP " + r.status);
-const txt = await r.text();
-if (txt.trim().indexOf("<") === 0) throw new Error("HTTPBLOCK"); // ISP block page / HTML
-try {
-const parsed = JSON.parse(txt);
-const netDt = Math.max(1, Math.round(((typeof performance !== "undefined" && performance.now) ? performance.now() : Date.now()) - reqT0));
-if (typeof S !== "undefined") { S.netMs = netDt; S.lastLatency = netDt; }
-if (HTTP_CACHE.size > 200) HTTP_CACHE.delete(HTTP_CACHE.keys().next().value);
-HTTP_CACHE.set(url, { data: parsed, at: Date.now() });
+const addonClient = AddonEngine.createClient({
+isHostOpen: hostIsOpen,
+onFailure: (url,error) => { noteHostFail(url); playbackMonitor.provider(url,0,error); },
+onSuccess: (url, elapsed) => {
 noteHostOk(url);
+playbackMonitor.provider(url,elapsed);
+S.netMs = elapsed; S.lastLatency = elapsed;
 if (typeof updateHud === "function") updateHud();
-return parsed;
-} catch (pe) { throw new Error("BADJSON"); }
-} catch (e) {
-clearTimeout(timer);
-lastErr = e;
-if (String((e && e.message) || "").indexOf("HTTP ") === 0) { noteHostFail(url); throw e; } // 404/500 pe retry bekaar
-if (a < retries) await new Promise((res) => setTimeout(res, 600));
 }
-}
-noteHostFail(url);
-throw lastErr;
+});
+function jget(url, timeoutMs, retries, noCache) {
+return addonClient.request(url, { timeoutMs, noCache: !!noCache });
 }
 function svgPoster(title, seedStr) {
 const seed = String(seedStr || title || "x");
@@ -1161,8 +1124,8 @@ return u;
 }
 async function loadOneAddon(base, noCache) {
 base = normalizeBase(base);
-const manifest = await jget(base + "/manifest.json", 15000, 1, noCache);
-if (!manifest || !manifest.id || !manifest.name) throw new Error("Ye valid addon nahi lag raha");
+const manifest = await jget(base + "/manifest.json", 4500, 0, noCache);
+if (!manifest || typeof manifest.id !== "string" || typeof manifest.name !== "string" || manifest.id.length > 200 || manifest.name.length > 200 || !Array.isArray(manifest.resources) || manifest.resources.length > 20 || !manifest.resources.every((r)=>typeof r === "string" || (r && typeof r.name === "string")) || (manifest.catalogs && (!Array.isArray(manifest.catalogs) || manifest.catalogs.length > 100 || !manifest.catalogs.every((c)=>c && typeof c.id === "string" && typeof c.type === "string")))) throw new Error("Ye valid addon nahi lag raha");
 return { base, manifest };
 }
 function hydrateFromCache() {
@@ -1185,35 +1148,52 @@ S.ready = true;
 }
 async function revalidateAddons() {
 const myRev = (S._revSeq = (S._revSeq || 0) + 1);
-const urls = store.get("se_addons", DEFAULT_ADDON_URLS);
-const before = S.addons.map((a) => a.base).sort().join("|");
-const results = await Promise.allSettled(urls.map((u) => loadOneAddon(u)));
-if (myRev !== S._revSeq) return false;
-const fresh = [], status = [], cache = store.get("se_manifests", {});
-results.forEach((r, i) => {
-const base = normalizeBase(urls[i]);
-if (r.status === "fulfilled") {
-fresh.push(r.value);
-status.push({ base, ok: true, name: r.value.manifest.name });
-cache[base] = { manifest: r.value.manifest, at: Date.now() };
-} else {
-const c = cache[base];
-if (c && c.manifest) {
-fresh.push({ base, manifest: c.manifest });
-status.push({ base, ok: true, name: c.manifest.name, cached: true });
-} else {
-status.push({ base, ok: false, error: friendlyErr(r.reason) });
-delete cache[base];
-}
+const urls = [...new Set(store.get("se_addons", DEFAULT_ADDON_URLS).map(normalizeBase))];
+const before = S.addons.map((a) => a.base + ":" + (a.manifest.version || "")).sort().join("|");
+const registry = new Map(S.addons.filter((a) => urls.includes(a.base)).map((a) => [a.base, a]));
+const statuses = new Map();
+const cache = store.get("se_manifests", {});
+const publish = () => {
+if (myRev !== S._revSeq) return;
+const wasEmpty = S.addons.length === 0;
+S.addons = urls.map((u) => registry.get(u)).filter(Boolean);
+S.addonStatus = urls.map((base) => statuses.get(base) || { base, ok: registry.has(base), cached: registry.has(base), loading: true });
+S.offline = statuses.size === urls.length ? ![...statuses.values()].some((status) => status.ok && !status.cached) : S.addons.length === 0;
+$("#offlineBar").hidden = !S.offline;
+if (wasEmpty && S.addons.length && $("#bootSkip") && $("#player").hidden) { S._lastRouteAt = 0; route(S.curHash); }
+};
+addonClient.ready.then(() => {
+if (myRev !== S._revSeq) return;
+urls.forEach((base) => {
+const manifest = addonClient.peek(base + "/manifest.json");
+if (!registry.has(base) && manifest && manifest.id && manifest.name) {
+registry.set(base, {base, manifest});
+const oldStatus = statuses.get(base);
+if (oldStatus) statuses.set(base, {...oldStatus, ok:true, cached:true, name:manifest.name});
 }
 });
+publish();
+});
+await Promise.all(addonClient.rank(urls, (u) => u).map(async (base) => {
+try {
+const addon = await loadOneAddon(base, true);
+if (myRev !== S._revSeq) return;
+registry.set(base, addon);
+statuses.set(base, { base, ok: true, name: addon.manifest.name });
+cache[base] = { manifest: addon.manifest, at: Date.now() };
+} catch (error) {
+if (myRev !== S._revSeq) return;
+const saved = cache[base];
+if (!registry.has(base) && saved && Date.now() - saved.at < 7 * 86400000) registry.set(base, { base, manifest: saved.manifest });
+const old = registry.get(base);
+statuses.set(base, old ? { base, ok: true, name: old.manifest.name, cached: true, error: friendlyErr(error) } : { base, ok: false, error: friendlyErr(error) });
+}
+publish();
+}));
+if (myRev !== S._revSeq) return false;
 store.set("se_manifests", cache);
-S.addons = fresh;
-S.addonStatus = status;
-S.offline = fresh.length === 0;
-$("#offlineBar").hidden = !S.offline;
-const after = fresh.map((a) => a.base).sort().join("|");
-return before !== after;
+publish();
+return before !== S.addons.map((a) => a.base + ":" + (a.manifest.version || "")).sort().join("|");
 }
 function bootLoaderHTML() {
 return '<div class="wrap"><div class="bootbox"><div class="bootlogo">Stream<span>Eo</span></div>' +
@@ -1230,7 +1210,7 @@ return true;
 function friendlyErr(e) {
 const m = String((e && e.message) || e || "");
 if (m.indexOf("HOSTOPEN") === 0) return "Ye server abhi cooling-off me hai (baar-baar fail/hang hua tha) — ~45 second me auto-retry hoga. Dusre source se chalao.";
-if ((e && e.name === "AbortError") || /abort/i.test(m)) return "Timeout — server/net slow hai. 🔄 Retry dabao.";
+if ((e && e.name === "AbortError") || /abort|timed out/i.test(m)) return "Timeout — server/net slow hai. 🔄 Retry dabao.";
 if (/Failed to fetch|NetworkError|Load failed|Network request failed/i.test(m)) return "Network fail — net down hai, ya ye domain tumhare net par block hai.";
 if (m.indexOf("HTTPBLOCK") === 0) return "BLOCK hai — is domain par tumhare net/ISP ne rok lagayi (block page aaya). Dusra net ya VPN try karo.";
 if (m.indexOf("BADJSON") === 0) return "Server ne ajeeb jawab diya (JSON nahi) — addon down ya galat URL ho sakta hai.";
@@ -1240,9 +1220,12 @@ if (/valid addon/i.test(m)) return m;
 return m || "Unknown error";
 }
 async function retryAddon(base) {
+const profileEpoch=syncEpoch;
+HOST_FAILS.delete(hostOf(base)); HOST_OPEN_UNTIL.delete(hostOf(base));
 toast("⏳ Retry: " + base);
 try {
 const a = await loadOneAddon(base, true);
+if(profileEpoch!==syncEpoch)return;
 S.addons = S.addons.filter((x) => x.base !== a.base);
 S.addons.push(a);
 const cache = store.get("se_manifests", {});
@@ -1253,6 +1236,7 @@ S.offline = S.addons.length === 0;
 $("#offlineBar").hidden = !S.offline;
 toast("✅ Connected: " + a.manifest.name);
 } catch (e) {
+if(profileEpoch!==syncEpoch)return;
 S.addonStatus = (S.addonStatus || []).map((s) => s.base === base ? { base, ok: false, error: friendlyErr(e) } : s);
 toast("❌ Phir fail: " + friendlyErr(e), true);
 }
@@ -1399,43 +1383,36 @@ poster: ["tt0816692", "tt1375666", "tt0468569", "tt0133093", "tt2911666", "tt131
 background: r[0] === "tt15239678" ? "./assets/dune-backdrop.jpg" : "https://images.metahub.space/background/medium/" + r[0] + "/img"
 }));
 async function fetchMeta(type, id) {
-const addons = metaAddons(type, id);
+const addons = addonClient.rank(metaAddons(type, id));
 S.metaErr = null;
-for (const a of addons) {
 try {
-const d = await jget(a.base + "/meta/" + type + "/" + safeEnc(id) + ".json");
-if (d && d.meta) {
-try { if (d.meta.moviedb_id) TMDB_CACHE[String(id).split(":")[0]] = d.meta.moviedb_id; } catch (e) {}
+return await Promise.any(addons.map(async (a) => {
+try {
+const d = await jget(a.base + "/meta/" + type + "/" + safeEnc(id) + ".json", 3500, 0);
+if (!d || !d.meta || !d.meta.id) throw new Error("No metadata");
+if (d.meta.moviedb_id) TMDB_CACHE[String(id).split(":")[0]] = d.meta.moviedb_id;
 return { meta: d.meta, addon: a };
-}
-} catch (e) { S.metaErr = { addon: a.base, err: e }; }
-}
+} catch (error) { S.metaErr = { addon: a.base, err: error }; throw error; }
+}));
+} catch (_) {}
 const memPool = [].concat((S.catMem && S.catMem.movie) || [], (S.catMem && S.catMem.series) || [], S.heroPool || [], ADDON_SEED_POOL);
 const hit = memPool.find((m) => String(m.id) === String(id));
 if (hit) {
 const metaCopy = Object.assign({}, hit);
-if (type === "series" && (!metaCopy.videos || !metaCopy.videos.length)) {
-metaCopy.videos = Array.from({ length: 8 }, (_, idx) => ({
-id: id + ":1:" + (idx + 1),
-season: 1,
-episode: idx + 1,
-title: "Episode " + (idx + 1)
-}));
-}
 return { meta: metaCopy, addon: S.addons[0] || { base: DEFAULT_ADDON_URLS[0], manifest: DEFAULT_MANIFESTS[DEFAULT_ADDON_URLS[0]] } };
 }
 return null;
 }
-async function fetchStreams(type, id) {
-const out = [];
-await Promise.all(streamAddons(type, id).map(async (a) => {
-try {
-const d = await jget(a.base + "/stream/" + type + "/" + safeEnc(id) + ".json");
-const streams = (d && d.streams) || [];
-if (streams.length) out.push({ addonName: a.manifest.name, streams });
-} catch (e) {  }
-}));
-return out;
+function fetchStreams(type, id, options = {}) {
+return AddonEngine.collect(addonClient.rank(streamAddons(type, id)).map((a) => async () => {
+const data = await jget(a.base + "/stream/" + type + "/" + safeEnc(id) + ".json", 4000, 0);
+const streams = Array.isArray(data.streams) ? data.streams : [];
+return streams.length ? { addonName: a.manifest.name, addonBase: a.base, streams } : null;
+}), {
+onUpdate: options.onUpdate,
+firstUseful: options.fast ? (group) => group.streams.some((st) => /^https?:\/\//i.test(st.url || "") && !/\.(mkv|avi|flv|wmv)(?:[?#]|$)/i.test(st.url)) : null,
+waitMs: options.waitMs ?? 1800
+});
 }
 async function fetchSubtitles(type, id, videoId) {
 const out = [];
@@ -1446,7 +1423,7 @@ a.base + "/subtitles/" + type + "/" + safeEnc(id) + "/videoId=" + safeEnc(videoI
 ];
 for (const u of tries) {
 try {
-const d = await jget(u, 8000);
+const d = await jget(u, 4000, 0);
 const subs = (d && d.subtitles) || [];
 subs.forEach((s) => { if (s.url) out.push({ url: s.url, lang: s.lang || "und", label: (s.lang || "Subtitle") + (a.manifest.name ? " • " + a.manifest.name : "") }); });
 if (subs.length) break;
@@ -1767,7 +1744,9 @@ rowHTML("Series worth staying in for", ADDON_SEED_POOL.filter((m) => m.type === 
 '<div id="homeExtra"></div>';
 window._heroItems = heroItems;
 renderHero(); restartHero();
+let currentHomeCategory = "all";
 const applyHomeFilter = (cat) => {
+currentHomeCategory = cat;
 $$("#homeChipBar .chip[data-hcat]").forEach((c) => c.classList.toggle("on", c.dataset.hcat === cat));
 $$("#app section.row[data-rowcat]").forEach((sec) => {
 const rc = sec.dataset.rowcat || "all";
@@ -1790,7 +1769,7 @@ jobs.push({ addon, cat, p: fetchCatalog(addon, cat, {}).catch(() => []) });
 /* Progressive rows — jo catalog pehle aaye wo turant paint ho, slowest ka wait na karo */
 let _seFirstRow = false;
 jobs.forEach((j) => {
-withCap(j.p, 6000, []).then((metas) => {
+j.p.catch(() => []).then((metas) => {
 if (my !== S.routeSeq || !metas || !metas.length) return;
 const _el = $("#homePrimary");
 if (!_el) return;
@@ -1801,9 +1780,10 @@ if (!_seFirstRow) { _seFirstRow = true; _el.innerHTML = ""; }
 _el.dataset.labels = (_el.dataset.labels || "") + "|" + _label + "|";
 const _link = _ctype === "movie" ? "#/movies" : "#/series";
 _el.insertAdjacentHTML("beforeend", rowHTML(_label, metas.slice(0, 20), _link, "Explore All →", _ctype));
+applyHomeFilter(currentHomeCategory);
 }).catch(() => {});
 });
-const settled = await Promise.all(jobs.map((j) => withCap(j.p, 6000, []).then((metas) => ({ j, metas: metas || [] }))));
+const settled = await Promise.all(jobs.map((j) => j.p.catch(() => []).then((metas) => ({ j, metas: metas || [] }))));
 if (my !== S.routeSeq) return;
 const _allTop = [];
 const _movMem = [], _serMem = [];
@@ -1849,6 +1829,7 @@ pHtml += rowHTML(label, s.metas.slice(0, 20), link, "Explore All →", ctype);
 });
 primEl.innerHTML = pHtml;
 }
+applyHomeFilter(currentHomeCategory);
 Promise.all([
 withCap(fetchNewReleases("movie"), 10000, []), withCap(fetchNewReleases("series"), 10000, []), withCap(fetchRecommendations(), 10000, ""), withCap(fetchGenreOfDay(), 10000, null)
 ]).then(([newMovies, newSeries, recoRows, gday]) => {
@@ -1861,6 +1842,7 @@ if (newSeries && newSeries.length) eHtml += rowHTML("New Series " + new Date().g
 if (gday) eHtml += rowHTML("Genre of the Day: " + gday.genre, gday.items, "", "", "movie");
 if (recoRows) eHtml += recoRows;
 extEl.innerHTML = eHtml;
+applyHomeFilter(currentHomeCategory);
 }).catch(() => {});
 }
 function toggleListHero(id) {
@@ -2372,6 +2354,7 @@ const nxBtn = $("#barNextEp");
 if (nxBtn) nxBtn.onclick = () => { if (opts.next) instantPlay({ id: opts.next.vid, vid: opts.next.vid, type: "series", name: opts.next.title, poster: opts.poster, backdrop: opts.backdrop }); };
 }
 function openCloudServer(opts, cloudIdx) {
+S.playRequest = null;
 const pkey = String(opts.videoId || opts.metaId || "");
 const sid = pkey.split(":")[0];
 const isEp = opts.type === "series" && sid !== pkey;
@@ -2633,12 +2616,12 @@ document.removeEventListener("keydown", onCloudFsKey);
 }
 async function instantPlay(item) {
 if (!item) return;
+const request = {}; S.playRequest = request;
 let id = String(item.id || "");
 let type = item.type || "movie";
 const name = item.name || item.title || "Stream";
 const poster = item.poster || svgPoster(name, id);
 const backdrop = item.backdrop || svgBackdrop(name, id);
-const tmdbPromise = fetchMeta(type, String(id).split(":")[0]).catch(() => null);
 const freeMatch = FREE_ITEMS.find((f) => f.id === id) || FREETV_LIVE_ITEMS.find((f) => f.id === id);
 if (freeMatch || type === "free" || id.indexOf("free-") === 0 || id.indexOf("ftv-") === 0) {
 const f = freeMatch || FREE_ITEMS[0];
@@ -2654,8 +2637,10 @@ $("#playerTitle").textContent = "⏳ Connecting Archive.org HD: " + (known.name 
 stage.innerHTML = '<div class="np-wrap"><div class="np-spinner"><div></div></div><div style="position:absolute;bottom:26%;width:100%;text-align:center;color:var(--acc);font-weight:800;font-size:14px">⚡ Archive.org se direct HD .mp4 stream nikaal rahe hain...</div></div>';
 try {
 const src = await resolveArchiveStream(archId);
+if (S.playRequest !== request) return;
 openPlayer({ title: (known.name || name), poster: known.poster || poster, backdrop, sources: [src], metaId: id, videoId: id, type: "movie", genres: ["Classic"] });
 } catch (e) {
+if (S.playRequest !== request) return;
 closePlayer();
 toast("❌ Archive stream fail: " + e.message, true);
 }
@@ -2692,19 +2677,23 @@ stage.innerHTML =
 '<div style="font-size:12.5px;color:var(--acc);font-family:monospace">Extracting direct stream link &amp; high-speed servers...</div>' +
 '</div>' +
 '</div>';
-const groups = await Promise.race([
-fetchStreams(type, vid).catch(() => []),
-new Promise((r) => setTimeout(() => r([]), 4500))
-]);
-if (player.hidden) return; // user closed player while loading
+let activeSources = null;
+const groups = await fetchStreams(type, vid, { fast: true, waitMs: buildCloudServers(type, vid, 0, TMDB_CACHE[String(id).split(":")[0]] || "").length ? 1800 : 6000, onUpdate: (available) => {
+// Late sources become fallbacks without interrupting a video already playing.
+if (!activeSources || !S.current || S.current.sources !== activeSources) return;
+available.forEach((g) => g.streams.forEach((st) => {
+if (/^https?:\/\//i.test(st.url || "") && activeSources.length < 20 && !activeSources.some((x) => x.url === st.url)) activeSources.push({ url: st.url, label: streamLabel(st) + " • " + g.addonName });
+}));
+} });
+if (S.playRequest !== request || player.hidden) return;
 const seenU = {};
 const directSources = [];
 let ytId = item.ytId || null;
 const qRank = (label) => {
 const u = String(label || "").toUpperCase();
-if (/2160|4K/.test(u)) return 5;
+if (/2160|4K/.test(u)) return 1;
 if (/1080/.test(u)) return 4;
-if (/720/.test(u)) return 3;
+if (/720/.test(u)) return 5;
 if (/HLS|M3U8/.test(u)) return 2;
 return 1;
 };
@@ -2727,7 +2716,9 @@ if (/\.(mkv|avi|flv|wmv|mov)$/.test(lu)) return -4;
 return 0;
 };
 directSources.sort((a, b) => (b.rank + playHint(b.url)) - (a.rank + playHint(a.url)));
-const tmdbRes = await Promise.race([tmdbPromise, new Promise((r) => setTimeout(() => r(null), 1500))]);
+const rankedSources = playbackMonitor.rank(directSources);
+const tmdbRes = directSources.length ? null : await withCap(fetchMeta(type, String(id).split(":")[0]), 250, null);
+if (S.playRequest !== request || player.hidden) return;
 const tmdbId = (tmdbRes && tmdbRes.meta && tmdbRes.meta.moviedb_id) || TMDB_CACHE[String(id).split(":")[0]] || "";
 const cloudServers = buildCloudServers(type, vid, 0, tmdbId);
 const playOpts = {
@@ -2735,7 +2726,7 @@ tmdbId,
 title: epTitle,
 poster,
 backdrop,
-sources: directSources.slice(0, 20),
+sources: rankedSources.slice(0, 20),
 cloudServers,
 ytId,
 metaId: vid,
@@ -2747,6 +2738,7 @@ metaName: name
 };
 if (directSources.length) {
 toast("⚡ Direct Stream Found — Auto-Playing!");
+activeSources = playOpts.sources;
 openPlayer(playOpts);
 } else if (cloudServers.length) {
 toast("⚡ Auto-Playing on Cloud Server 1 (Switch servers below if needed)");
@@ -3043,7 +3035,7 @@ openPlayer(Object.assign({}, baseOpts, { sources: sorted.slice(0, 20) }));
 });
 };
 paintStreams([], true); // ☁️ cloud servers + turant clickable UI
-const groups = await withCap(fetchStreams(vtype, vid), 7000, []);
+const groups = await fetchStreams(vtype, vid, { onUpdate: (groups) => paintStreams(groups, true) });
 paintStreams(groups || [], false); // 📦 addon streams merge
 }
 }
@@ -3096,7 +3088,7 @@ if (sub) sub.textContent = out.length
 paintSearch();
 jobs.forEach((p) => {
 // incremental merge — jo addon pehle jawab de, uske results turant grid me
-withCap(p, 9000, []).then((metas) => {
+p.catch(() => []).then((metas) => {
 if (my !== S.routeSeq) return;
 pending--;
 (metas || []).forEach((m) => { if (m && m.id && !seen[m.id]) { seen[m.id] = 1; out.push(m); } });
@@ -3565,7 +3557,7 @@ const logoUrl = httpsUrl(m.logo);
 const logo = logoUrl ? '<img class="addon-logo" src="' + esc(logoUrl) + '" onerror="this.outerHTML=\'<div class=&quot;addon-logo-fb&quot;>🧩</div>\'">' : '<div class="addon-logo-fb">🧩</div>';
 const isTorrent = /torrent/i.test((m.id || "") + " " + (m.name || ""));
 return '<div class="addon-card">' + logo + '<div class="addon-info"><h3>' + esc(m.name) + ' <span class="ver">v' + esc(m.version || "?") + "</span></h3>" +
-'<div style="font-size:12px;color:var(--green);font-weight:700;margin:2px 0 4px">✅ Connected' + ((statusByBase[a.base] || {}).cached ? " • saved" : "") + "</div>" +
+'<div style="font-size:12px;color:var(--green);font-weight:700;margin:2px 0 4px">' + ((statusByBase[a.base] || {}).error ? '⚠ Provider unavailable' : '✅ Connected') + ((statusByBase[a.base] || {}).cached ? " • saved" : "") + "</div>" +
 "<p>" + esc(m.description || "No description") + "</p>" +
 (isTorrent ? '<p style="color:var(--gold)">⚠ Torrent-hash wala addon — iske grey items KISI bhi browser site me play nahi honge (hash video nahi hota).</p>' : "") +
 '<div class="addon-tags">' + res.map((r) => '<span class="tag">' + esc(r) + "</span>").join("") +
@@ -3581,6 +3573,7 @@ const quickInstallHTML = QUICK_ADDONS.filter((q) => !urls.some((u) => normalizeB
 ).join(" ");
 app.innerHTML = '<div class="wrap"><div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap"><h1 class="page-title">Add-ons</h1><a class="btn btn-ghost" href="#/sync" data-route="#/sync">Cloud Sync &amp; Backup →</a></div>' +
 '<p class="page-sub">Stremio-protocol addons — catalog, meta, streams, subtitles sab yahin se.</p>' +
+'<section class="engine-panel" aria-label="Add-on loading engine"><div><h2>Fast add-on engine <span>ACTIVE</span></h2><p>Playback-first queue · parallel providers · smart cache · slow-host protection</p><output id="engineStats" aria-live="off"></output></div><button class="btn btn-sm btn-ghost" type="button" id="clearAddonCache">Clear request cache</button></section>' +
 '<form class="addon-form" id="addonForm"><input id="addonURL" placeholder="Addon ka manifest URL paste karo...  (https://... ya https://.../manifest.json)"><button class="btn btn-primary" type="submit">➕ Install Addon</button></form>' +
 '<form class="addon-form" id="proxyForm" style="align-items:center"><input id="proxyURL" placeholder="🛡️ Apna proxy URL (Cloudflare Worker) — blocked/na chalne wale streams isse chalenge" value="' + esc(store.get("se_proxy_url", "")) + '"><button class="btn btn-primary" type="submit">🛡️ Save Proxy</button><button class="btn btn-ghost" type="button" id="proxyTest">🧪 Test</button><button class="btn btn-ghost" type="button" id="proxyClear">✕</button></form>' +
 '<p style="font-size:12.5px;color:var(--muted);margin:-14px 0 20px 2px">Custom proxy set hone par player sabse pehle yahi try karega, phir public proxies. Format: <code>https://app.workers.dev</code> ya <code>https://app.workers.dev/?u=</code> (token ho to <code>&amp;k=TOKEN</code> bhi chalega)</p>' +
@@ -3607,12 +3600,16 @@ builtinRowsHTML() +
 '<button class="btn btn-sm btn-ghost" id="resetAddons">↩ Default addons wapas lao</button>' +
 '<button class="btn btn-sm btn-danger" id="wipeAll">🗑 Saara data clear karo</button></div></div></div>';
 async function installAddonByUrl(rawUrl) {
+const profileEpoch=syncEpoch;
 const base = normalizeBase(rawUrl);
 if (!base.startsWith("http")) { toast("Sahi URL daalo (https://...)", true); return; }
 if (urls.some((u) => normalizeBase(u) === base)) { toast("Ye addon pehle se installed hai 🙂"); return; }
 toast("⏳ Addon install ho raha...");
 try {
 const a = await loadOneAddon(base, true);
+if(profileEpoch!==syncEpoch)return;
+const capabilities=(a.manifest.resources||[]).map((r)=>typeof r === "string"?r:r.name).filter(Boolean).join(", ");
+if(!confirm("Install provider: "+a.manifest.name+"\nOrigin: "+new URL(base).origin+"\nCapabilities: "+capabilities+"\nThis third-party provider receives your requests. Install only if you trust it."))return;
 urls.push(base); store.set("se_addons", urls);
 const cache = store.get("se_manifests", {});
 cache[a.base] = { manifest: a.manifest, at: Date.now() };
@@ -3625,6 +3622,8 @@ toast("✅ " + a.manifest.name + " installed!");
 viewAddons();
 } catch (err) { toast("❌ Install fail: " + friendlyErr(err), true); }
 }
+const clearCacheButton = $("#clearAddonCache");
+if (clearCacheButton) clearCacheButton.onclick = () => { addonClient.clear(); HOST_FAILS.clear(); HOST_OPEN_UNTIL.clear(); S.slowHosts = []; toast("Request cache cleared — fresh requests enabled"); };
 $("#addonForm").onsubmit = (e) => {
 e.preventDefault();
 installAddonByUrl($("#addonURL").value);
@@ -3726,7 +3725,7 @@ function proxyList() {
 const out = [];
 const base = proxyBaseUrl();
 if (base) out.push(function (u) { return joinProxy(base, u); });
-return out.concat(PUBLIC_PROXIES);
+return out.concat(store.get("se_public_proxies",false) ? PUBLIC_PROXIES : []);
 }
 const proxyCount = () => proxyList().length;
 const proxyUrl = (u, i) => { try { const l = proxyList(); return (l[i] || function (x) { return x; })(u); } catch (e) { return u; } };
@@ -3747,6 +3746,23 @@ hlsProxyLoaderCache = { px: px, Cls: ProxiedLoader };
 return ProxiedLoader;
 } catch (e) { return null; }
 }
+let hlsLibraryPromise = null;
+function loadHlsLibrary() {
+if (window.Hls) return Promise.resolve();
+if (hlsLibraryPromise) return hlsLibraryPromise;
+hlsLibraryPromise = new Promise((resolve, reject) => {
+let settled = false;
+const script = document.createElement("script");
+script.src = "./assets/hls.min.js";
+script.async = true;
+const fail = () => { if (settled) return; settled = true; clearTimeout(timer); script.remove(); hlsLibraryPromise = null; reject(new Error("HLS player could not load")); };
+const timer = setTimeout(fail, 6000);
+script.onerror = fail;
+script.onload = () => { clearTimeout(timer); if (window.Hls) { settled = true; resolve(); } else fail(); };
+document.head.appendChild(script);
+});
+return hlsLibraryPromise;
+}
 function attachSrc(video, url, proxyIdx) {
 S.upgradedHttp = false;
 let finalUrl = String(url || "");
@@ -3761,6 +3777,13 @@ const useProxy = typeof proxyIdx === "number" && proxyIdx >= 0;
 S.currentSrc = origUrl;
 S.proxyIdx = useProxy ? proxyIdx : -1;
 const hlsMode = isHls(origUrl);
+const attachment = {}; video._attachment = attachment;
+if (hlsMode && !window.Hls && !video.canPlayType("application/vnd.apple.mpegurl")) {
+loadHlsLibrary().then(() => {
+if (video.isConnected && video._attachment === attachment && S.currentSrc === origUrl) attachSrc(video, url, proxyIdx);
+}).catch(() => { if (video.isConnected && video._attachment === attachment && S.onStreamError) S.onStreamError(); });
+return;
+}
 destroyHls();
 if (useProxy) finalUrl = proxyUrl(origUrl, proxyIdx);
 if (hlsMode) {
@@ -3768,17 +3791,18 @@ if (window.Hls && window.Hls.isSupported()) {
 const hcfg = {
 enableWorker: true,
 lowLatencyMode: false,
-backBufferLength: 30,
+startLevel: 0,
+backBufferLength: 20,
 maxBufferLength: 30,
 maxMaxBufferLength: 60,
 capLevelToPlayerSize: true,
-manifestLoadingMaxRetry: 3,
-levelLoadingMaxRetry: 3,
-fragLoadingMaxRetry: 4,
+manifestLoadingMaxRetry: 1,
+levelLoadingMaxRetry: 1,
+fragLoadingMaxRetry: 2,
 fragLoadingRetryDelay: 600,
-manifestLoadingTimeOut: 14000,
-levelLoadingTimeOut: 14000,
-fragLoadingTimeOut: 22000,
+manifestLoadingTimeOut: 7000,
+levelLoadingTimeOut: 7000,
+fragLoadingTimeOut: 12000,
 abrEwmaDefaultEstimate: 1200000
 };
 if (useProxy) { const PL = getProxiedHlsLoader((u) => proxyUrl(u, proxyIdx)); if (PL) hcfg.loader = PL; }
@@ -3787,6 +3811,7 @@ try { hls = new window.Hls(hcfg); }
 catch (e0) { try { delete hcfg.loader; } catch (e1) {} hls = new window.Hls(hcfg); }
 let mediaRecovered = false;
 hls.on(window.Hls.Events.ERROR, function (ev, data) {
+if (S.hls !== hls) return;
 try {
 if (data && data.details === "audioTrackLoadError" && S.hls) {
 S.hls.audioTrack = 0;
@@ -3875,6 +3900,7 @@ check: "M9 16.2l-3.5-3.5L4 14.2 9 19.2 20 8.2l-1.4-1.4z"
 return '<svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor" aria-hidden="true"><path d="' + (P[name] || P.play) + '"/></svg>';
 }
 function openPlayer(opts) {
+S.playRequest = null;
 if (NP.cleanup) { try { NP.cleanup(); } catch (e) {} NP.cleanup = null; }
 NP.closeMenu = null;
 const player = $("#player"), stage = $("#playerStage"), bar = $("#playerBar");
@@ -3889,7 +3915,7 @@ const sources = opts.sources || [];
 if (!sources.length) { toast("Is me koi stream nahi hai", true); closePlayer(); return; }
 const isLiveItem = !!(opts.live || String(opts.metaId || "").indexOf("ftv-") === 0 || String(opts.videoId || "").indexOf("ftv-") === 0);
 let fbPromise = isLiveItem ? findLiveBackups(opts.title) : null; // backup servers background me ready hote rahen
-let stallWatch = null;
+let stallWatch = null, startupWatch = null;
 let srcIdx = 0, pendingSeek = null, clickTimer = null, idleTimer = null, upTimer = null, closed = false;
 const pxUsed = {};
 let cloudHopTried = false;
@@ -3954,7 +3980,7 @@ renderPlayerServerBar(opts, "direct");
 const v = $("#npVideo"), wrap = $("#npWrap"), menu = $("#npMenu"),
 spin = $("#npSpin"), flashEl = $("#npFlash"), upnext = $("#npUpnext"), statsEl = $("#npStats"),
 skipIntroBtn = $("#npSkipIntro"), speed2xEl = $("#npSpeed2x"), epDrawer = $("#npEpDrawer");
-let curBoost = 1, curEq = "flat", curFilter = "none", curFit = 0, subOffset = 0, subSize = store.get("se_sub_size", "21px"),
+let curBoost = 1, curEq = "flat", curFilter = "none", curFit = 0, subOffset = (opts.noHistory ? 0 : Number(store.get("se_sub_offsets",{})[pkey])) || 0, subSize = store.get("se_sub_size", "21px"),
 subColor = store.get("se_sub_color", "#ffffff"), ambientOn = true, sleepMins = 0, sleepTimer = null, statsTimer = null,
 loopA = null, loopB = null;
 document.documentElement.style.setProperty("--sub-size", subSize);
@@ -3980,17 +4006,18 @@ const fb = $("#npFit");
 if (fb) fb.textContent = fm.badge;
 toast("📐 Aspect Ratio: " + fm.name);
 }
+const subtitleBaseTimes = new WeakMap();
+function applySubtitleOffset() {
+Array.from(v.textTracks || []).forEach((track) => Array.from(track.cues || []).forEach((cue) => {
+if(!subtitleBaseTimes.has(cue))subtitleBaseTimes.set(cue,{start:cue.startTime,end:cue.endTime});
+const original=subtitleBaseTimes.get(cue);
+cue.startTime=Math.max(0,original.start+subOffset);cue.endTime=Math.max(cue.startTime+.2,original.end+subOffset);
+}));
+}
 function shiftSubOffset(delta) {
-subOffset = Math.round((subOffset + delta) * 10) / 10;
-try {
-Array.from(v.textTracks || []).forEach((tt) => {
-Array.from(tt.cues || []).forEach((cue) => {
-cue.startTime = Math.max(0, cue.startTime + delta);
-cue.endTime = Math.max(cue.startTime + 0.2, cue.endTime + delta);
-});
-});
-toast("💬 Subtitle Sync: " + (subOffset >= 0 ? "+" : "") + subOffset + "s");
-} catch (e) { toast("💬 Subtitle sync updated", false); }
+subOffset=Math.max(-30,Math.min(30,Math.round((subOffset+delta)*10)/10));
+if(!opts.noHistory){const offsets=Object.assign({},store.get("se_sub_offsets",{}));delete offsets[pkey];offsets[pkey]=subOffset;store.set("se_sub_offsets",Object.fromEntries(Object.entries(offsets).slice(-100)));}
+try{applySubtitleOffset();toast("Subtitle sync: "+(subOffset>=0?"+":"")+subOffset+"s");}catch(_){toast("Subtitle sync saved");}
 }
 function setSleepTimer(mins) {
 sleepMins = mins;
@@ -4114,7 +4141,19 @@ clearTimeout(idleTimer);
 if (!v.paused && !v.ended) idleTimer = setTimeout(() => { if (!isMenuOpen() && !(epDrawer && !epDrawer.hidden) && (document.activeElement === player || !player.contains(document.activeElement))) player.classList.add("np-idle"); }, 3000);
 };
 const updQBadge = () => { const source = sources[srcIdx] || {}; $("#npQ").textContent = opts.localFile ? "LOCAL" : parseQuality({ title: source.label || "" }); };
+const armStartupWatch = () => {
+clearTimeout(startupWatch);
+startupWatch = setTimeout(() => {
+if (closed || player.hidden || v.readyState >= 2) return;
+if (document.hidden) { armStartupWatch(); return; }
+handleStreamErr("startup-timeout");
+}, 10000);
+};
+v.addEventListener("loadeddata", () => clearTimeout(startupWatch));
+v.addEventListener("canplay", () => clearTimeout(startupWatch));
+let sourceObservation = null;
 const trySource = (i, proxyIdx) => {
+sourceObservation = playbackMonitor.begin(sources[i].url);
 const sameSource = i === srcIdx;
 srcIdx = i;
 if (!sameSource) pxUsed[i] = 0;
@@ -4125,6 +4164,7 @@ v._retriedNoCors = false;
 if (!v._audioCtx) v.setAttribute("crossorigin", "anonymous");
 v.removeAttribute("src"); v.load();
 attachSrc(v, sources[i].url, typeof proxyIdx === "number" ? proxyIdx : -1);
+armStartupWatch();
 updQBadge();
 };
 const switchSource = (i, quiet) => {
@@ -4181,22 +4221,32 @@ $("#npDeadCopy").onclick = (e) => { e.stopPropagation(); $("#playerCopy").click(
 const dfb = $("#npDeadFrame");
 if (dfb) dfb.onclick = (e) => { e.stopPropagation(); openFrame(deadInfo().u); };
 };
-const handleStreamErr = () => {
+const handleStreamErr = (reason) => {
+clearTimeout(startupWatch);
 if (closed || player.hidden || !S.currentSrc) return;
-if (!v._retriedNoCors && v.hasAttribute("crossorigin") && !isHls(S.currentSrc) && !v._audioCtx) {
+playbackMonitor.failure(sourceObservation);
+if (reason !== "startup-timeout" && !v._retriedNoCors && v.hasAttribute("crossorigin") && !isHls(S.currentSrc) && !v._audioCtx) {
 v._retriedNoCors = true;
 v.removeAttribute("crossorigin");
 v.removeAttribute("src"); v.load();
+sourceObservation=playbackMonitor.begin(sources[srcIdx].url);
 attachSrc(v, sources[srcIdx].url, (typeof S.proxyIdx === "number" ? S.proxyIdx : -1));
+armStartupWatch();
 return;
 }
 const pxDone = pxUsed[srcIdx] || 0;
+// Try another known direct source before slow public proxy chains. Give a configured worker one chance first.
+if (srcIdx + 1 < sources.length && (pxDone >= (proxyBaseUrl() ? 1 : 0) || sources[srcIdx].noProxy)) {
+switchSource(srcIdx + 1, true); return;
+}
 if (pxDone < proxyCount() && !(sources[srcIdx] && sources[srcIdx].noProxy)) {
 pxUsed[srcIdx] = pxDone + 1;
 spin.hidden = false;
-toast("🛡️ Link blocked / CORS error — Auto-Proxy " + pxUsed[srcIdx] + "/" + proxyCount() + " se chala rahe...");
+toast("🛡️ Network / format / CORS failure — trying proxy " + pxUsed[srcIdx] + "/" + proxyCount() + " se chala rahe...");
 try { v.removeAttribute("src"); v.load(); } catch (e) {}
+sourceObservation=playbackMonitor.begin(sources[srcIdx].url);
 attachSrc(v, sources[srcIdx].url, pxDone);
+armStartupWatch();
 return;
 }
 if (srcIdx + 1 < sources.length) { toast("⚠ Ye quality fail — agli try kar rahe..."); switchSource(srcIdx + 1, true); }
@@ -4217,7 +4267,7 @@ const curOpts = S.current || opts;
 const cl = cloudHopTried ? [] : buildCloudServers(curOpts.type || "movie", String(curOpts.videoId || curOpts.metaId || pkey), 0, curOpts.tmdbId);
 if (cl && cl.length) {
 cloudHopTried = true;
-toast("☁️ Sab direct links fail — Cloud Server 1 (auto-transcode) laga rahe hain...");
+toast("☁️ Sab direct links fail — external server 1 (third-party player) laga rahe hain...");
 setTimeout(() => { if (!closed && !player.hidden) openCloudServer(curOpts, 0); }, 1200);
 } else { toast("❌ Video load nahi hua", true); showDead(); }
 }
@@ -4232,8 +4282,9 @@ progress.set(pkey, { t: Math.floor(v.currentTime), d: Math.floor(v.duration), na
 type: opts.type === "series" ? "series" : "movie", poster: opts.poster || "", backdrop: opts.backdrop || "",
 link: opts.type === "series" && seriesId !== String(pkey) ? "#/detail/series/" + safeEnc(seriesId) : undefined });
 };
-v.addEventListener("waiting", () => { spin.hidden = false; });
-v.addEventListener("playing", () => { spin.hidden = true; });
+v.addEventListener("waiting", () => { spin.hidden = false; if (!v.paused && !v.seeking) playbackMonitor.waiting(sourceObservation); });
+v.addEventListener("seeking", () => playbackMonitor.pause(sourceObservation));
+v.addEventListener("playing", () => { if(closed)return; spin.hidden = true; playbackMonitor.playing(sourceObservation); });
 v.addEventListener("canplay", () => { spin.hidden = true; });
 {
 // UNIVERSAL stall watchdog: stream atka rahe to proxy / agla source / cloud server khud laga do
@@ -4252,7 +4303,7 @@ handleStreamErr();
 }, 5000);
 }
 v.addEventListener("play", () => { setPlayIcon(); showUI(); });
-v.addEventListener("pause", () => { setPlayIcon(); showUI(); saveVideoProgressNow(); });
+v.addEventListener("pause", () => { if(closed)return; playbackMonitor.pause(sourceObservation); setPlayIcon(); showUI(); saveVideoProgressNow(); });
 const togglePlay = () => {
 if (v.ended) { try { v.currentTime = 0; } catch (e) {} }
 if (v.paused) { v.play().catch(function () {}); flashShow(npIcon("play")); }
@@ -4440,7 +4491,7 @@ prog.addEventListener("pointerleave", () => { tip.style.opacity = "0"; });
 v.addEventListener("loadedmetadata", () => {
 if (pendingSeek != null) return;
 const saved = progress.get(pkey);
-if (saved && saved.t > 15 && isFinite(v.duration) && saved.t < (saved.d || v.duration) - 25) {
+if (store.get("se_auto_resume",true) && saved && saved.t > 15 && isFinite(v.duration) && saved.t < (saved.d || v.duration) - 25) {
 v.currentTime = Math.min(saved.t, v.duration - 5);
 toast("⏯ Resume: " + fmtTime(saved.t) + " se chala rahe");
 }
@@ -4450,12 +4501,14 @@ const setVolIcon = () => { muteBtn.innerHTML = npIcon(v.muted || v.volume === 0 
 vol.oninput = () => { v.muted = false; v.volume = +vol.value; setVolIcon(); };
 muteBtn.onclick = (e) => { e.stopPropagation(); v.muted = !v.muted; setVolIcon(); showUI(); };
 v.addEventListener("volumechange", () => { vol.value = v.muted ? 0 : v.volume; setVolIcon(); });
-function addTrack(url, label, enable) {
+function addTrack(url, label, enable, lang) {
 const tr = document.createElement("track");
-tr.kind = "subtitles"; tr.label = label || "Subtitle"; tr.srclang = "en"; tr.src = url;
+tr.kind = "subtitles"; tr.label = label || "Subtitle"; tr.srclang = lang || "und"; tr.src = url;
+tr.addEventListener("load",()=>{if(!closed)applySubtitleOffset();});
 v.appendChild(tr);
-tracks.push({ el: tr, label: label || ("Sub " + tracks.length) });
-if (enable || tracks.length === 1) { curTrack = tracks.length - 1; applySub(); }
+tracks.push({ el: tr, label: label || ("Sub " + tracks.length), lang: lang || "und" });
+const preferred = store.get("se_sub_lang","off");
+if (enable || (preferred !== "off" && curTrack < 0 && (lang || "").toLowerCase().split("-")[0] === preferred)) { curTrack = tracks.length - 1; applySub(); }
 if (isMenuOpen() && menuView === "subs") renderMenu();
 }
 function applySub() {
@@ -4477,9 +4530,11 @@ rd.readAsText(f);
 e.target.value = "";
 };
 (async () => {
+if (opts.noHistory || opts.localFile) return;
 try {
 const subs = await fetchSubtitles(opts.type === "series" ? "series" : "movie", seriesId, pkey);
-subs.slice(0, 12).forEach((s) => addTrack(s.url, s.label));
+if (closed || !v.isConnected) return;
+subs.slice(0, 12).forEach((s) => addTrack(s.url, s.label, false, s.lang));
 if (subs.length) toast("💬 " + subs.length + " subtitles mile");
 } catch (e) {}
 })();
@@ -4598,7 +4653,7 @@ if (go) { openMenu(go.dataset.go); return; }
 const q = e.target.closest("[data-q]");
 if (q) { switchSource(+q.dataset.q); menu.hidden = true; showUI(); return; }
 const sb = e.target.closest("[data-sub]");
-if (sb) { curTrack = +sb.dataset.sub; applySub(); openMenu("subs"); return; }
+if (sb) { curTrack = +sb.dataset.sub; store.set("se_sub_lang",curTrack < 0 ? "off" : (tracks[curTrack].lang || "und")); applySub(); openMenu("subs"); return; }
 const ssync = e.target.closest("[data-subsync]");
 if (ssync) { shiftSubOffset(parseFloat(ssync.dataset.subsync)); openMenu("subs"); return; }
 const ssz = e.target.closest("[data-subsize]");
@@ -4688,11 +4743,11 @@ else await v.requestPictureInPicture();
 const hideUpnext = () => { upnext.hidden = true; clearInterval(upTimer); clearTimeout(S.nextTimer); };
 const showUpnext = (next) => {
 menu.hidden = true;
-let count = 5;
+let count = store.get("se_next_delay", 5);
 upnext.innerHTML =
 '<div class="np-upcard"><div class="np-upkick">Up Next</div>' +
 '<div class="np-uptitle">' + esc(next.title) + "</div>" +
-'<div class="np-upbtns"><button class="np-upplay" id="npUpPlay">▶ Play (<span id="npUpCount">5</span>s)</button>' +
+'<div class="np-upbtns"><button class="np-upplay" id="npUpPlay">▶ Play (<span id="npUpCount">' + count + '</span>s)</button>' +
 '<button class="np-upcancel" id="npUpCancel">Cancel</button></div></div>';
 upnext.hidden = false;
 player.classList.remove("np-idle");
@@ -4709,7 +4764,7 @@ if (count <= 0) { hideUpnext(); if (!player.hidden) playNext(); }
 v.addEventListener("ended", () => {
 progress.del(pkey);
 setPlayIcon();
-if (S.current.next) showUpnext(S.current.next);
+if (S.current.next && store.get("se_autoplay_next", true)) showUpnext(S.current.next);
 else { showUI(); toast("✅ Khatam! Mazaa aaya? 😎"); }
 });
 (async () => {
@@ -4835,7 +4890,7 @@ document.removeEventListener("fullscreenchange", setFsIcon);
 stage.removeEventListener("mousemove", showUI);
 player.removeEventListener("focusin", showUI);
 document.removeEventListener("webkitfullscreenchange", setFsIcon);
-clearTimeout(idleTimer); clearInterval(upTimer); clearInterval(statsTimer); clearTimeout(sleepTimer); clearTimeout(holdTimer); clearTimeout(spaceTimer); clearTimeout(S.nextTimer); clearTimeout(clickTimer); if (stallWatch) clearInterval(stallWatch); fbPromise = null;
+clearTimeout(startupWatch); clearTimeout(idleTimer); clearInterval(upTimer); clearInterval(statsTimer); clearTimeout(sleepTimer); clearTimeout(holdTimer); clearTimeout(spaceTimer); clearTimeout(S.nextTimer); clearTimeout(clickTimer); if (stallWatch) clearInterval(stallWatch); fbPromise = null;
 if (v && v._audioCtx) { try { v._audioCtx.close(); } catch (e) {} v._audioCtx = null; v._gainNode = null; }
 tracks.forEach((t) => { if (t.el.src.startsWith("blob:")) URL.revokeObjectURL(t.el.src); });
 destroyHls();
@@ -4848,6 +4903,7 @@ const nx = cur.next;
 instantPlay({ id: nx.vid.split(":")[0], vid: nx.vid, type: cur.type || "series", name: nx.title, poster: cur.poster, backdrop: cur.backdrop, genres: cur.genres });
 }
 function openFrame(url) {
+S.playRequest = null;
 const player = $("#player"), stage = $("#playerStage"), bar = $("#playerBar");
 S.current = { frame: true };
 if (NP.cleanup) { try { NP.cleanup(); } catch (e) {} NP.cleanup = null; }
@@ -4864,6 +4920,7 @@ stage.innerHTML = '<iframe src="' + esc(url) + '"' + sandboxAttr() + ' referrerp
 bar.innerHTML = '<a class="btn btn-sm btn-ghost" href="' + esc(url) + '" target="_blank" rel="noopener">↗ Naye tab me kholo</a><span class="player-hint">Site ka apna player — blank aaye to host ne mana kiya</span>';
 }
 function openYT(yid, title, extra) {
+S.playRequest = null;
 const cleanYid = String(yid || "").replace(/[^A-Za-z0-9_-]/g, "").slice(0, 24);
 if (!cleanYid) { toast("Invalid YouTube trailer ID", true); return; }
 const player = $("#player"), stage = $("#playerStage"), bar = $("#playerBar");
@@ -4913,6 +4970,7 @@ mBtn.title = nextMini ? "Expand to Full Player (P)" : "Shrink to Floating Corner
 toast(nextMini ? "🗗 Mini-Player Docked! Ab aap poori site browse kar sakte ho video band kiye bina" : "⛶ Full Player Restored");
 }
 function closePlayer() {
+S.playRequest = null;
 const player = $("#player");
 if (player.hidden) return;
 if (NP.cleanup) { try { NP.cleanup(); } catch (e) {} NP.cleanup = null; }
@@ -4970,120 +5028,76 @@ store.set("se_progress", p);
 }
 } catch (e) {}
 }
-const DEFAULT_D1_CODE = "streameo_d1_main";
-const SYNC_KEYS = ["se_list", "se_progress", "se_history", "se_addons", "se_manifests", "se_theme", "se_builtin", "se_adshield", "se_sub_lang", "se_sub_size", "se_audio_pref", "se_lab_url"];
-const syncCode = () => store.get("se_sync_code", DEFAULT_D1_CODE);
-const syncBase = () => { let b = String(store.get("se_sync_api", "") || "").trim(); while (b.endsWith("/") && b.length) b = b.slice(0, -1); return b; };
+const SYNC_KEYS = ["se_list","se_progress","se_history","se_addons","se_theme","se_builtin","se_adshield","se_sub_lang","se_sub_size","se_sub_offsets","se_audio_pref","se_autoplay_next","se_next_delay","se_auto_resume","se_tv_navigation"];
+const syncCode = () => { const code=store.get("se_sync_code",""); return PlatformCore.validSecret(code) ? code : ""; };
+const syncBase = () => String(store.get("se_sync_api","")||"").replace(/\/+$/,"");
 let syncTimer = null, lastVisPull = 0, progressDirty = false;
 const SYNC_KEYS_SLOW = ["se_progress"];
-const SYNC_KEYS_FAST = SYNC_KEYS.filter((k) => SYNC_KEYS_SLOW.indexOf(k) === -1);
-function djb2(s) { let h = 5381; s = String(s || ""); for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0; return String(h); }
-function syncSnapshot() {
-const d = {};
-SYNC_KEYS.forEach((k) => { const v = store.get(k, undefined); if (v !== undefined) d[k] = v; });
-return JSON.stringify(d);
+const SYNC_KEYS_FAST = SYNC_KEYS.filter((k)=>!SYNC_KEYS_SLOW.includes(k));
+function djb2(s) { let h=5381; for (const c of String(s)) h=((h<<5)+h+c.charCodeAt(0))|0; return String(h); }
+function syncSnapshot() { const data={}; SYNC_KEYS.forEach((k)=>{const value=store.get(k,undefined);if(value!==undefined)data[k]=value;});return JSON.stringify(data); }
+let lastCloudPushAt=0;
+function markProgressDirty(){if(syncCode())progressDirty=true;}
+function flushSync(forceNow){if(!progressDirty||!syncCode()||(!forceNow&&Date.now()-lastCloudPushAt<15000))return;lastCloudPushAt=Date.now();pushSync(false);}
+S.lastPushHash="";
+function schedulePush(){if(S._applying||!syncCode()||S.syncConflict)return;clearTimeout(syncTimer);syncTimer=setTimeout(()=>pushSync(false),2500);}
+function syncErrMsg(error){if(error.status===409)return "Cloud changed on another device. Download latest before uploading again.";return "Private sync unavailable. Your local profile is safe. Check the worker setup and connection.";}
+async function privateSyncRequest(method,data){
+const code=syncCode();if(!code)throw Error("Private sync is disconnected");
+const epoch=syncEpoch,controller=new AbortController();syncControllers.add(controller);
+const timer=setTimeout(()=>controller.abort(),10000);
+try{
+const headers={Authorization:"Bearer "+code};if(method==="PUT"){headers["Content-Type"]="application/json";headers["If-Match"]=String(store.get("se_sync_revision",0));}
+const response=await fetch(syncBase()+"/api/sync",{method,headers,body:method==="PUT"?JSON.stringify({data}):undefined,signal:controller.signal,cache:"no-store",credentials:"omit",referrerPolicy:"no-referrer"});
+const payload=await response.json();
+if(epoch!==syncEpoch||code!==syncCode())throw Object.assign(Error("Profile changed"),{stale:true});
+if(!response.ok)throw Object.assign(Error("Private sync request failed"),{status:response.status});
+if(!Number.isSafeInteger(payload.revision)||payload.revision<0)throw Error("Incompatible sync API");
+return payload;
+}finally{clearTimeout(timer);syncControllers.delete(controller);}
 }
-let lastCloudPushAt = 0;
-function markProgressDirty() { if (syncCode()) progressDirty = true; }
-function flushSync(forceNow) {
-if (!progressDirty || !syncCode() || (typeof navigator !== "undefined" && navigator.onLine === false)) return;
-const now = Date.now();
-if (!forceNow && (now - lastCloudPushAt < 15000)) return;
-progressDirty = false;
-lastCloudPushAt = now;
-pushSync(false);
+let syncUpload = null;
+function pushSync(manual,forceEmpty){
+if(syncUpload)return syncUpload;
+const operation=performPushSync(manual,forceEmpty);
+syncUpload=operation.finally(()=>{if(syncUpload===tracked)syncUpload=null;});
+const tracked=syncUpload;return tracked;
 }
-S.lastPushHash = "";
-function schedulePush() {
-if (S._applying || !syncCode()) return;
-try { clearTimeout(syncTimer); } catch (e) {}
-syncTimer = setTimeout(() => { lastCloudPushAt = Date.now(); pushSync(false); }, 2500);
+async function performPushSync(manual,forceEmpty){
+if(!syncCode()||S.syncConflict){if(manual)toast(S.syncConflict?"Download latest to resolve the cloud conflict":"Connect private sync first",true);return;}
+const epoch=syncEpoch;
+try{
+if(!S.d1Pulled){const ok=await pullSync(false,true);if(!ok||epoch!==syncEpoch)return;}
+const snapshot=forceEmpty?"{}":syncSnapshot(),hash=djb2(snapshot);
+if(hash===S.lastPushHash&&!forceEmpty)return;
+const payload=await privateSyncRequest("PUT",JSON.parse(snapshot));
+store.set("se_sync_revision",payload.revision);store.set("se_sync_ts",payload.ts);store.set("se_sync_msg","Private snapshot uploaded");S.lastPushHash=hash;
+if(syncSnapshot()===snapshot){store.set("se_sync_dirty",false);progressDirty=false;}else schedulePush();
+if(manual)toast("Private snapshot uploaded");
+}catch(error){if(epoch!==syncEpoch||error.stale)return;S.syncConflict=error.status===409;store.set("se_sync_msg",syncErrMsg(error));if(manual)toast(syncErrMsg(error),true);}
 }
-function syncErrMsg(e) {
-const m = String((e && e.message) || e || "");
-if (/Failed to fetch|Load failed|NetworkError/i.test(m)) return "Sync server nahi mila — pehle Cloudflare pe deploy karo (preview me nahi chalega).";
-if (/HTTP 404/.test(m)) return "API nahi mila (404) — API URL galat hai. Worker ka URL dalo (site ka nahi), aakhir me /api/sync mat lagao.";
-return m.slice(0, 140) || "Sync fail";
+async function pullSync(manual,fromUpload=false){
+if(!syncCode())return false;
+if(syncUpload&&!fromUpload)return false;
+const epoch=syncEpoch, beforeSnapshot=syncSnapshot(), beforeRevision=store.get("se_sync_revision",0);
+try{
+const payload=await privateSyncRequest("GET");
+if(beforeSnapshot!==syncSnapshot() || beforeRevision!==store.get("se_sync_revision",0)){store.set("se_sync_msg","Local data changed while downloading. It was kept; retry when edits are finished.");return false;}
+if(!manual && store.get("se_sync_dirty",false)){
+if(payload.revision!==store.get("se_sync_revision",0)){S.syncConflict=true;store.set("se_sync_msg",syncErrMsg({status:409}));return false;}
+S.d1Pulled=true;S.syncConflict=false;return true;
 }
-async function pushSync(manual, forceEmpty) {
-const code = syncCode();
-if (!code) { if (manual) toast("Pehle sync code lagao", true); return; }
-if (typeof navigator !== "undefined" && navigator.onLine === false) { if (manual) toast("Offline ho — net aane pe Sync dabao", true); return; }
-if (!S.d1Pulled && !forceEmpty) {
-try { await pullSync(false); } catch (e) {}
-}
-const snap = forceEmpty ? "{}" : syncSnapshot();
-const h = djb2(snap);
-if (!forceEmpty && h === S.lastPushHash) { if (manual) { toast("Sab Cloudflare D1 me synced hai ✓"); try { viewSync(); } catch (e) {} } return; }
-const data = JSON.parse(snap);
-const ctrl = new AbortController();
-const t = setTimeout(() => ctrl.abort(), 10000);
-try {
-const r = await fetch(syncBase() + "/api/sync", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code, data, forceReplace: !!forceEmpty }), keepalive: true, signal: ctrl.signal });
-clearTimeout(t);
-const j = await r.json().catch(() => ({}));
-if (!r.ok) throw new Error((j && j.error) || ("HTTP " + r.status));
-if (j.code) store.set("se_sync_code", j.code);
-if (Array.isArray(j.savedAddons) && j.savedAddons.length) _memStore.se_addons = _cleanAddonUrls(j.savedAddons);
-store.set("se_sync_ts", j.ts || Date.now());
-store.set("se_sync_msg", "D1 Save OK " + new Date().toLocaleTimeString());
-S.lastPushHash = h; progressDirty = false; S._retried = false;
-if (manual) { toast("☁️ Cloudflare D1 me save ho gaya!"); try { viewSync(); } catch (e) {} }
-} catch (e) {
-clearTimeout(t);
-store.set("se_sync_msg", "FAIL " + String((e && e.message) || e || "").slice(0, 90));
-if (manual) { toast(syncErrMsg(e), true); try { viewSync(); } catch (e) {} }
-else if (!S._retried) { S._retried = true; setTimeout(() => { try { pushSync(false); } catch (err) {} }, 30000); }
-}
-}
-async function pullSync(manual) {
-const code = syncCode();
-if (!code) { if (manual) toast("Pehle sync code lagao", true); return; }
-if (typeof navigator !== "undefined" && navigator.onLine === false) { if (manual) toast("Offline ho", true); return; }
-const ctrl = new AbortController();
-const t = setTimeout(() => ctrl.abort(), 10000);
-try {
-const r = await fetch(syncBase() + "/api/sync?code=" + safeEnc(code), { signal: ctrl.signal });
-clearTimeout(t);
-const j = await r.json().catch(() => ({}));
-if (!r.ok) throw new Error((j && j.error) || ("HTTP " + r.status));
-S.d1Pulled = true;
-if (j.code) store.set("se_sync_code", j.code);
-if (Array.isArray(j.profiles)) S.d1Profiles = j.profiles;
-const localTs = store.get("se_sync_ts", 0);
-if (!j.ts) {
-store.set("se_sync_msg", "Cloudflare D1 ready (New Profile)");
-if (manual) { toast("D1 profile ready — Upload dabao"); try { viewSync(); } catch (e) {} }
-return;
-}
-if (!manual && S.d1Hydrated && j.ts <= localTs) return;
-S.d1Hydrated = true;
-applyRemote(j.data || {});
-store.set("se_sync_ts", j.ts);
-store.set("se_sync_msg", "D1 Load OK " + new Date().toLocaleTimeString());
-if (manual) toast("☁️ Cloudflare D1 se purana data + addons wapas aa gaye!");
-afterRemote(manual);
-} catch (e) {
-clearTimeout(t);
-store.set("se_sync_msg", "FAIL " + String((e && e.message) || e || "").slice(0, 90));
-if (manual) { toast(syncErrMsg(e), true); try { viewSync(); } catch (e) {} }
-}
+S.d1Pulled=true;S.syncConflict=false;store.set("se_sync_revision",payload.revision);store.set("se_sync_ts",payload.ts);store.set("se_sync_msg",payload.revision?"Private snapshot downloaded":"New private cloud profile");
+if(payload.revision){S.d1Hydrated=true;applyRemote(payload.data||{});store.set("se_sync_dirty",false);afterRemote(!!manual);}
+if(manual)toast("Private cloud snapshot downloaded");return true;
+}catch(error){if(epoch===syncEpoch&&!error.stale){store.set("se_sync_msg",syncErrMsg(error));if(manual)toast(syncErrMsg(error),true);}return false;}
 }
 function applyRemote(data) {
+data = PlatformCore.validateSnapshot(data);
 S._applying = true;
 try {
 SYNC_KEYS.forEach((k) => {
-if (data[k] === undefined) return;
-if (k === "se_addons" && Array.isArray(data.se_addons)) {
-const cur = store.get("se_addons", DEFAULT_ADDON_URLS);
-const merged = Array.from(new Set(data.se_addons.concat(cur).map(normalizeBase).filter(Boolean)));
-store.set("se_addons", merged);
-} else if (k === "se_manifests" && data.se_manifests && typeof data.se_manifests === "object") {
-const curM = store.get("se_manifests", {});
-store.set("se_manifests", Object.assign({}, curM, data.se_manifests));
-} else {
-store.set(k, data[k]);
-}
+if(data[k]===undefined)store.del(k);else store.set(k,data[k]);
 });
 } catch (e) {}
 S._applying = false;
@@ -5114,7 +5128,7 @@ try {
 if (syncCode()) {
 lastVisPull = Date.now();
 await pullSync(false);
-if (_migratedFromLs) pushSync(false);
+if (store.get("se_sync_dirty",false) && !S.syncConflict) pushSync(false);
 }
 } catch (e) {}
 }
@@ -5122,136 +5136,15 @@ window.addEventListener("pagehide", () => { try { flushSync(true); } catch (e) {
 document.addEventListener("visibilitychange", () => {
 try {
 if (document.hidden) { flushSync(false); return; }
-if (!syncCode()) return;
+if (!syncCode() || syncUpload) return;
+if(store.get("se_sync_dirty",false)){pushSync(false);return;}
 const now = Date.now();
 if (now - lastVisPull < 60 * 60 * 1000) return;
 lastVisPull = now;
 pullSync(false);
 } catch (e) {}
 });
-function viewSync() {
-const app = $("#app");
-const code = syncCode();
-const msg = store.get("se_sync_msg", "");
-const ts = store.get("se_sync_ts", 0);
-app.innerHTML = '<div class="wrap"><h1 class="page-title">Cloud Sync &amp; Backup</h1>' +
-'<p class="page-sub">Zero <code>localStorage</code> Mode Active — Tumhari My List, Continue Watching, History, Addons aur Theme seedha <b>Cloudflare D1 Database</b> aur RAM (<code>_memStore</code>) me rehta hai.</p>' +
-'<div class="sect"><h2>📦 JSON Snapshot Backup (Export / Restore)</h2>' +
-'<p class="page-sub">Apna poora D1/RAM snapshot (.json file) download karo ya kisi bhi device par Restore dabao.</p>' +
-'<div class="addon-actions">' +
-'<button class="btn btn-sm btn-primary" id="backupExport">⬇ Export Backup (.json)</button>' +
-'<button class="btn btn-sm btn-ghost" id="backupImportBtn">📤 Restore Backup (.json)</button>' +
-'<input type="file" id="backupFile" accept=".json,application/json" style="display:none">' +
-'</div></div>' +
-'<div class="sect"><h2>🔑 Cloudflare D1 Profile Code (<code>/api/sync</code>)</h2>' +
-'<form class="addon-form" id="syncForm"><input id="syncCode" placeholder="Apna secret D1 profile code (min 6 chars)" value="' + esc(code) + '"><button class="btn btn-primary" type="submit">Save &amp; Sync D1</button></form>' +
-'<form class="addon-form" id="apiForm"><input id="syncApi" placeholder="API URL — static hosting ho to worker URL, warna khaali chhodo" value="' + esc(store.get("se_sync_api", "")) + '"><button class="btn btn-ghost" type="submit">API Save</button></form>' +
-'<p class="page-sub">Default D1 profile (<code>streameo_d1_main</code>) auto-active hai, ya apna private secret code lagao.</p></div>' +
-'<div class="sect"><h2>Status (Zero localStorage • 100% Cloudflare D1)</h2><p id="syncBackend">Backend check ho raha...</p>' +
-"<p>" + (code ? "Active D1 Profile Code: <b>" + esc(code) + "</b>" : "Code nahi laga — pehle connect karo.") + "</p>" +
-(ts ? "<p>Aakhri D1 sync: <b>" + esc(new Date(ts).toLocaleString()) + "</b></p>" : "") +
-(msg ? "<p>" + esc(msg) + "</p>" : "") +
-'<div class="addon-actions"><button class="btn btn-sm btn-primary" id="syncNow">🔄 Sync D1 Now</button>' +
-'<button class="btn btn-sm btn-ghost" id="syncUp">⬆ Upload RAM → D1</button>' +
-'<button class="btn btn-sm btn-ghost" id="syncDown">⬇ Download D1 → RAM</button>' +
-(code && code !== DEFAULT_D1_CODE ? '<button class="btn btn-sm btn-danger" id="syncOff">Reset to Default Profile</button>' : "") + "</div></div>" +
-'<div class="note"><b>Zero <code>localStorage</code> + Cloudflare D1 Architecture:</b><br>• Browser ke <code>localStorage</code> me <b>0 bytes</b> store hote hain (100% clean).<br>• Saara data runtime me RAM (<code>_memStore</code>) me rehta hai aur changes / player close / tab close par seedha <b>Cloudflare D1 (<code>sync_store</code> table)</b> me save hota hai.</div></div>';
-$("#backupExport").onclick = () => {
-try {
-const payload = { version: 1, exportedAt: new Date().toISOString(), data: JSON.parse(syncSnapshot()) };
-const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
-const a = document.createElement("a");
-a.href = URL.createObjectURL(blob);
-a.download = "streameo-backup-" + new Date().toISOString().slice(0, 10) + ".json";
-a.click();
-toast("✅ Backup file download ho gayi!");
-} catch (e) { toast("❌ Export fail: " + e.message, true); }
-};
-$("#backupImportBtn").onclick = () => $("#backupFile").click();
-$("#backupFile").onchange = (e) => {
-const f = e.target.files && e.target.files[0];
-if (!f) return;
-const rd = new FileReader();
-rd.onload = () => {
-try {
-const parsed = JSON.parse(String(rd.result || "{}"));
-const data = (parsed && parsed.data && typeof parsed.data === "object") ? parsed.data : parsed;
-applyRemote(data);
-toast("✅ Backup restore ho gaya — Cloudflare D1 me save kar rahe hain...");
-pushSync(false);
-afterRemote(true);
-} catch (err) { toast("❌ Invalid backup file", true); }
-};
-rd.readAsText(f);
-e.target.value = "";
-};
-$("#syncForm").onsubmit = async (e) => {
-e.preventDefault();
-const c = $("#syncCode").value.trim();
-if (!/^[A-Za-z0-9_-]{6,64}$/.test(c)) { toast("Code 6-64 chars: letters/numbers/_/-", true); return; }
-store.set("se_sync_code", c);
-toast("⏳ Connecting D1 Profile: " + c + "...");
-await pullSync(false);
-await pushSync(true);
-viewSync();
-};
-$("#apiForm").onsubmit = async (e) => {
-e.preventDefault();
-let u = $("#syncApi").value.trim();
-while (u.endsWith("/") && u.length) u = u.slice(0, -1);
-if (u.length > 9 && u.slice(-9) === "/api/sync") u = u.slice(0, -9);
-if (u.length > 5 && u.slice(-5) === "/sync") u = u.slice(0, -5);
-if (u && u.indexOf("http") !== 0) { toast("URL https:// se shuru hona chahiye", true); return; }
-try { if (u === location.origin) u = ""; } catch (e) {}
-store.set("se_sync_api", u);
-toast("⏳ D1 Worker se connect ho raha hai...");
-await pullSync(false);
-await pushSync(true);
-viewSync();
-};
-$("#syncNow").onclick = async () => { toast("Sync ho raha..."); await pullSync(false); await pushSync(true); };
-$("#syncUp").onclick = () => pushSync(true);
-$("#syncDown").onclick = () => pullSync(true);
-const off = $("#syncOff");
-if (off) off.onclick = () => { store.del("se_sync_code"); store.del("se_sync_ts"); store.set("se_sync_msg", ""); toast("Disconnected"); viewSync(); };
-probeSync();
-}
-async function probeSync() {
-const el = $("#syncBackend");
-const ctrl = new AbortController();
-const t = setTimeout(() => ctrl.abort(), 5000);
-try {
-const r = await fetch(syncBase() + "/api/sync?code=__probe__", { signal: ctrl.signal });
-clearTimeout(t);
-const j = await r.json().catch(() => ({}));
-const el2 = $("#syncBackend");
-if (!el2) return;
-if (r.ok && j.d1) {
-let profHtml = "";
-if (Array.isArray(j.profiles) && j.profiles.length) {
-profHtml = '<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;align-items:center"><span style="font-size:12px;color:var(--muted)">🗄️ Saved D1 Profiles:</span>' +
-j.profiles.map((p) => '<button type="button" class="btn btn-sm btn-ghost" data-d1prof="' + esc(p.code) + '">🔄 ' + esc(p.code) + ' (' + (p.addons || 0) + ' addons)</button>').join("") + '</div>';
-}
-el2.innerHTML = "Backend: <b style='color:var(--green)'>✅ Ready (D1 connected)</b>" + profHtml;
-el2.querySelectorAll("[data-d1prof]").forEach((b) => {
-b.onclick = async () => {
-store.set("se_sync_code", b.dataset.d1prof);
-toast("⏳ Recovering D1 Profile: " + b.dataset.d1prof);
-await pullSync(true);
-viewSync();
-};
-});
-}
-else if (r.status === 501) el2.innerHTML = "Backend: <b>code deploy hai par D1 bound nahi</b> — upar Local Backup (.json) use karo ya D1 bind karo";
-else if (r.status === 404) el2.innerHTML = "Backend: <b>Cloudflare D1 API bound nahi hai (404)</b> — upar <b>Local Backup (.json)</b> use karo ya Worker me <code>/api/sync</code> lagao";
-else el2.innerHTML = "Backend: <b>jawab ajeeb (" + r.status + ")</b> — " + esc((j && j.error) || "");
-} catch (e) {
-clearTimeout(t);
-const el2 = $("#syncBackend");
-if (el2) el2.innerHTML = "Backend: <b>server nahi mila</b> — upar <b>Local Backup (.json)</b> har jagah kaam karega";
-}
-if (el && !$("#syncBackend")) return;
-}
+function viewSync() { if(window.PlatformUI) PlatformUI.render("profiles"); else appPlatformPending(); }
 function parseM3uPlaylist(text, maxItems) {
 const cap = maxItems || 1500;
 const lines = String(text || "").split(/\r?\n/);
@@ -5667,7 +5560,7 @@ const THEMES = [
 function applyTheme(id) {
 const t = THEMES.some((x) => x.id === id) ? id : "stremio";
 if (document.body && document.body.dataset) document.body.dataset.theme = t;
-store.set("se_theme", t);
+if(store.get("se_theme","stremio")!==t)store.set("se_theme", t);
 if (typeof S !== "undefined" && typeof S.paintMatrix === "function") S.paintMatrix();
 }
 function initThemeUI() {
@@ -5732,7 +5625,7 @@ const domMs = (S && S.renderMs > 0) ? S.renderMs : 1;
 const netMs = getRealNetMs();
 const blk = (S && S.blockedAds) || 0;
 const cool = (S && S.slowHosts && S.slowHosts.length) ? (" • ⏸" + S.slowHosts.length) : "";
-txt.textContent = APP_BUILD + " DOM:" + domMs + "ms • NET:" + netMs + "ms • 🛡️" + blk + " • RAM:" + HTTP_CACHE.size + cool;
+txt.textContent = APP_BUILD + " DOM:" + domMs + "ms • NET:" + netMs + "ms • 🛡️" + blk + " • RAM:" + addonClient.snapshot().cached + cool;
 }
 function initHud() {
 const hud = $("#sysHud");
@@ -6012,7 +5905,7 @@ const alive = () => mySeq === searchSeq && inp.value.trim() === q && (document.a
 if (alive()) renderDropItems(localMatches, q, pending);
 jobs.forEach((p) => {
 // har addon ka result aate hi turant render — slow/dead addon baaki results ko block nahi karega
-withCap(p, 6000, []).then((metas) => {
+p.catch(() => []).then((metas) => {
 if (!alive()) return;
 pending--;
 (metas || []).forEach((m) => {
@@ -6060,6 +5953,7 @@ rec.start();
 };
 }
 }
+function appPlatformPending() { $("#app").innerHTML = '<div class="wrap"><p class="page-sub">Loading your space…</p></div>'; }
 function route(explicitHash) {
 const routeT0 = (typeof performance !== "undefined" && performance.now) ? performance.now() : Date.now();
 const rawHash = String(explicitHash || S.curHash || location.hash || "#/home");
@@ -6087,6 +5981,9 @@ if (name === "home") viewHome(my);
 else if (name === "movies") viewCatalog("movie", my);
 else if (name === "series") viewCatalog("series", my);
 else if (name === "anime") viewAnime(my);
+else if (["profiles","settings","health"].includes(name)) {
+if (window.PlatformUI) PlatformUI.render(name); else appPlatformPending(name);
+}
 else if (name === "detail") {
 const dType = seg[1] || "movie";
 const dId = seg.slice(2).join("/");
@@ -6285,9 +6182,7 @@ trimStores();
 hydrateFromCache();
 S.loading = true;
 goRoute(location.hash || "#/home");
-await pullSyncBoot();
-hydrateFromCache();
-updateNavListBadge();
+pullSyncBoot().catch(() => {});
 revalidateAddons().then((changed) => {
 S.loading = false;
 if ((changed || S.d1Hydrated) && $("#player").hidden) { S._lastRouteAt = 0; route(S.curHash); }
@@ -6488,5 +6383,6 @@ boot();
 try { console.log("%cStreamEo " + APP_BUILD + "%c — fully-functional stable build • circuit-breaker + incremental search ON", "background:#00ff88;color:#000;font-weight:900;padding:2px 8px;border-radius:4px", "color:#22d3ee"); } catch (e) {}
 </script>
 <script src="./cinema.js"></script>
+<script src="./platform-ui.js"></script>
 </body>
 </html>

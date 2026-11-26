@@ -4,8 +4,8 @@
      - static: stale-while-revalidate
      - version.json & sw.js: always network
      - cross-origin (TMDB, mirrors, HLS CDNs, proxies): untouched */
-const VER = "se-v30-cinema";
-const SHELL = ["./", "./index.html", "./manifest.json", "./icon.svg", "./cinema.css", "./cinema.js", "./assets/dune-backdrop.jpg"];
+const VER = "se-v32-platform";
+const SHELL = ["./", "./index.html", "./manifest.json", "./icon.svg", "./cinema.css", "./cinema.js", "./addon-engine.js", "./platform-core.js", "./platform-ui.js", "./assets/hls.min.js", "./assets/dune-backdrop.jpg"];
 
 self.addEventListener("install", (e) => {
   e.waitUntil(
@@ -56,6 +56,7 @@ self.addEventListener("fetch", (e) => {
   const req = e.request;
   if (req.method !== "GET") return;
   const url = new URL(req.url);
+  if (url.pathname.includes("/api/sync")) return;                  // private snapshots are never cached
   if (url.origin !== self.location.origin) return;                    // CDNs / APIs / embeds: untouched
   if (url.pathname.endsWith("/sw.js")) return;                        // never cache the SW itself
   if (url.pathname.endsWith("/version.json")) return;                 // build watcher: always live
