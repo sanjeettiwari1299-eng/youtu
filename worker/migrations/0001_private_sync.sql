@@ -1,0 +1,6 @@
+CREATE TABLE IF NOT EXISTS sync_profiles (
+  id TEXT PRIMARY KEY,
+  data TEXT NOT NULL,
+  revision INTEGER NOT NULL DEFAULT 1,
+  updated_at INTEGER NOT NULL
+);

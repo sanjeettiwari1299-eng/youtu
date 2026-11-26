@@ -370,4 +370,11 @@
     childList: true,
   });
   enhanceContent();
+  const refreshEngineStats = () => {
+    const output = q("#engineStats");
+    if (!output || document.hidden) return;
+    const stats = addonClient.snapshot();
+    output.textContent = `${stats.active} active · ${stats.queued} queued · ${stats.hits} cache hits · ${stats.shared} duplicate requests avoided · ${stats.cached} cached responses`;
+  };
+  setInterval(refreshEngineStats, 1000);
 })();

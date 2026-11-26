@@ -8,3 +8,11 @@ Sources retrieved through GitHub:
 - The Umbrella Academy, Pokémon, Breaking Bad, House, Supernatural, Smallville: `mini1`, `mini3`, `mini6`, `mini7`, `mini8`, `mini9` respectively from https://github.com/felipeAguiarCode/netflix-clone/tree/master/img
 
 The remaining catalog artwork is fetched from the existing add-ons/image providers at runtime. A title listing does not imply an available or authorized playable source.
+
+## Playback dependency
+
+`hls.min.js` is the pinned hls.js 1.5.17 browser bundle from https://github.com/video-dev/hls.js (Apache-2.0). Its complete license is included in `HLS-LICENSE.txt`. It is loaded on demand from the same origin. Rebuild this vendored copy with `npm run vendor:hls`.
+
+## License scope
+
+The root GPL-3.0-only license covers original project code, not these film/TV posters or backdrops. No artwork rights are granted by that code license. Preserve the separate hls.js Apache-2.0 notice and review artwork permissions before redistribution.

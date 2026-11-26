@@ -9,3 +9,15 @@ compatibility_date = "2024-11-01"
 # [vars]
 # TOKEN = "change-me"
 # ALLOW_HOSTS = "cdn.example.com,another.example.com"
+
+# OPTIONAL private sync: create a real D1 database, then uncomment and fill its id.
+# Without DB the media proxy still works; /api/sync returns 503.
+# [[d1_databases]]
+# binding = "DB"
+# database_name = "streameo-private-sync"
+# database_id = "COPY-THE-ID-FROM-WRANGLER-D1-CREATE"
+# migrations_dir = "migrations"
+# [vars]
+# SYNC_ALLOWED_ORIGINS = "https://your-static-site.example"
+# ALLOW_HOSTS = "your-authorized-media.example"
+# Do not duplicate [vars] if enabling the earlier example.

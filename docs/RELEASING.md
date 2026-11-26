@@ -1,0 +1,11 @@
+# Releasing
+
+1. Preserve the selected **GPL-3.0-only** license in `LICENSE` and package metadata. Review `LICENSE-DECISION.md`, third-party notices, contribution rights and artwork permissions before redistribution.
+2. Use Node 24 and Python 3. Run `npm ci`, `npm run vendor:hls`, `npx playwright install --with-deps chromium`, `npm test`, `npm audit --audit-level=high`, and `git diff --check`.
+3. Keep package/lock version, `APP_BUILD`, `version.json` and SW cache version consistent. Review privacy migrations and release limitations.
+4. Run `npm run release:package`. It writes `release/streameo-{version}.tar.gz` and `release/SHA256SUMS` using an explicit source allowlist, normalized ordering/ownership/modes/timestamps and gzip mtime zero. Repeating on identical files with the same Python/zlib toolchain yields identical bytes. Compare `SHA256SUMS` after rebuilding. Cross-zlib-version compression identity is not guaranteed.
+5. Inspect archive contents: no `.git`, node_modules, credentials, browser caches or generated reports. It contains source/tests/docs plus vendored runtime assets; `npm ci` is still required to run development tests. Toolchains are not included and checksums are not digital signatures.
+6. Deploy the static site root to your chosen host (including `platform-core.js` and `platform-ui.js`). Deploy the optional worker separately, bind D1 and run migrations as described in `worker/README.md`. Do not publish worker secrets or `.dev.vars` as static assets.
+7. Validate a fresh load and upgrade from an old cached shell, local-file playback, profile isolation, denied storage, safe diagnostics and a real authorized stream. For sync, test two-device revision conflicts and operator deletion/retention. Automated mock tests do not replace a production smoke test.
+
+GitHub Actions **Quality and security** runs tests/audit/vendor checks/reproducibility checks. **Package release** is a manually dispatched artifact build; neither workflow publishes a GitHub Release, merges a PR, deploys Pages, or provisions Cloudflare/D1 automatically. Run checks on the intended revision before publishing artifacts. CI passing has to be confirmed in GitHub, not inferred from local success.
